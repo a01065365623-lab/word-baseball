@@ -5,12 +5,14 @@ import random
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 
-app = Flask(__name__, static_folder='app/static', static_url_path='')
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__, static_folder=os.path.join(_BASE_DIR, 'app', 'static'), static_url_path='')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')
 
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
-DATABASE = os.path.join(os.path.dirname(__file__), 'words.db')
+DATABASE = os.path.join(_BASE_DIR, 'words.db')
 
 VALID_LANGS = {
     'en', 'ko', 'ja', 'zh', 'de', 'fr', 'hi', 'es', 'pt', 'it', 'ru', 'tr', 'vi', 'ar'
