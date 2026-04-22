@@ -2305,7 +2305,7 @@ async function fetchLocalWord(difficulty) {
     const res = await fetch(`/api/words/random?difficulty=${difficulty}`, { credentials:'include' });
     if (!res.ok) return null;
     return await res.json();
-  } catch { return null; }
+  } catch(e) { return null; }
 }
 
 function _localHitType(difficulty) {

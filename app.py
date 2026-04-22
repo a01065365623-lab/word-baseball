@@ -114,6 +114,40 @@ def get_words():
     return jsonify(words)
 
 
+@app.route('/api/words/random')
+def api_words_random():
+    """프론트엔드 호환 라우트. /api/words/random?difficulty=1|2|3"""
+    difficulty = request.args.get('difficulty', 1, type=int)
+    if difficulty not in (1, 2, 3):
+        difficulty = 1
+
+    q_lang = request.args.get('question_lang', 'en').strip().lower()
+    a_lang = request.args.get('answer_lang', 'ko').strip().lower()
+    if q_lang not in VALID_LANGS:
+        q_lang = 'en'
+    if a_lang not in VALID_LANGS:
+        a_lang = 'ko'
+
+    db = get_db()
+    try:
+        row = db.execute(
+            f'SELECT en, {a_lang}, level FROM vocabulary'
+            ' WHERE level = ? ORDER BY RANDOM() LIMIT 1',
+            (difficulty,)
+        ).fetchone()
+    except sqlite3.OperationalError as e:
+        return jsonify({'error': str(e)}), 400
+
+    if not row or not row[0]:
+        return jsonify({'error': 'no word found'}), 404
+
+    return jsonify({
+        'word':       row[0],
+        'meaning':    row[1] or '',
+        'difficulty': row[2],
+    })
+
+
 # ── 정적 파일 폴백 (SPA) ──────────────────────────────────────
 
 @app.route('/<path:path>')
