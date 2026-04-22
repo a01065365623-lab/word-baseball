@@ -1,0 +1,2923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Word Baseball</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fredoka+One&family=Inter:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0f1830;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Nunito', 'Inter', 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+    #game-container { position: relative; }
+
+    .overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 800px; height: 600px;
+      pointer-events: none;
+    }
+    .overlay * { pointer-events: auto; }
+
+    /* ── 로그인 / 회원가입 패널 ─────────────────────────────── */
+    /* ── 카드 공통 텍스트 쉐도우 ─────────────────────────── */
+    #login-panel, #register-panel, #lobby-panel, #waiting-panel {
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    #login-panel *, #register-panel *, #lobby-panel *, #waiting-panel * {
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    /* 버튼 */
+    #login-panel button, #register-panel button,
+    #lobby-panel button, #waiting-panel button,
+    #login-panel a {
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+    /* 타이틀 */
+    .login-title h1 {
+      text-shadow: none; /* gradient clip과 충돌 방지 — filter로 대체 */
+    }
+
+    #login-panel, #register-panel {
+      position: absolute;
+      left: 222px;
+      width: 356px;
+      background: rgba(10,20,50,0.92);
+      border: 1px solid rgba(180,230,245,0.55);
+      border-radius: 20px;
+      padding: 32px 36px 28px;
+      color: #f0faff;
+      box-shadow:
+        0 24px 60px rgba(0,0,0,0.45),
+        0 0 0 1px rgba(160,220,240,0.20),
+        inset 0 1px 0 rgba(255,255,255,0.20);
+      animation: fadeUp 0.4s ease;
+    }
+    #login-panel { top: 90px; }
+    #register-panel { top: 18px; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 타이틀 섹션 */
+    .login-title {
+      text-align: center;
+      margin-bottom: 26px;
+    }
+    .login-title .ball-icon {
+      font-size: 44px;
+      display: block;
+      margin-bottom: 10px;
+      animation: ballSpin 6s linear infinite;
+      transform-origin: center;
+    }
+    @keyframes ballSpin {
+      0%   { transform: rotate(0deg) scale(1); }
+      50%  { transform: rotate(180deg) scale(1.08); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    .login-title h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 38px;
+      letter-spacing: 4px;
+      color: #FFE566;
+      -webkit-text-fill-color: #FFE566;
+      line-height: 1;
+      margin-bottom: 6px;
+      filter: drop-shadow(0 0 18px rgba(255,220,80,0.65))
+              drop-shadow(0 2px 5px rgba(0,0,0,0.95));
+    }
+    .login-title p {
+      font-size: 12px;
+      color: rgba(255,240,190,0.85);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* 입력 필드 */
+    .input-group {
+      position: relative;
+      margin-bottom: 10px;
+    }
+    .input-group .input-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px;
+      opacity: 0.7;
+      pointer-events: none;
+      color: #ffffff;
+      z-index: 1;
+    }
+    .auth-input {
+      width: 100%;
+      padding: 11px 14px 11px 38px;
+      background: rgba(255,255,255,0.22);
+      border: 1px solid rgba(180,230,245,0.45);
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .auth-input::placeholder { color: rgba(255,255,255,0.55); }
+    .auth-input:focus {
+      border-color: rgba(135,206,235,0.85);
+      box-shadow: 0 0 0 3px rgba(135,206,235,0.25);
+    }
+
+    /* 구글 로그인 버튼 hover */
+    #btn-google-login:hover {
+      background: #f8f8f8 !important;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18) !important;
+    }
+
+    /* 에러 메시지 */
+    .error-msg {
+      color: #f85149;
+      font-size: 12px;
+      min-height: 16px;
+      margin-bottom: 8px;
+      padding-left: 2px;
+    }
+
+    /* 버튼 공통 */
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      margin-top: 6px;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    /* 로그인/게임시작 - 민트 그린 */
+    .btn-login-main {
+      background: linear-gradient(135deg, #3a9e6e 0%, #4CAF82 100%);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 4px 20px rgba(76,175,130,0.50);
+    }
+    .btn-login-main:hover {
+      background: linear-gradient(135deg, #4CAF82 0%, #6dcfa0 100%);
+      box-shadow: 0 6px 26px rgba(76,175,130,0.68);
+    }
+
+    /* 회원가입/계정만들기 - 스카이블루 */
+    .btn-outline {
+      background: linear-gradient(135deg, #4578d8 0%, #5B8DEF 100%);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      box-shadow: 0 4px 18px rgba(91,141,239,0.45);
+    }
+    .btn-outline:hover {
+      background: linear-gradient(135deg, #5B8DEF 0%, #7aaaf5 100%);
+      box-shadow: 0 6px 24px rgba(91,141,239,0.62);
+    }
+
+    /* 게스트 - 보라 */
+    .btn-ghost {
+      background: transparent;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px;
+      margin-top: 2px;
+    }
+    .btn-ghost:hover { color: rgba(255,255,255,0.8); }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0 4px;
+      color: rgba(203,213,225,0.55);
+      font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(180,230,245,0.35);
+    }
+
+    /* ── 일반 패널 (로비, 대기실, 결과) ──────────────────────── */
+    .panel {
+      position: absolute;
+      background: rgba(10,20,50,0.92);
+      border: 1px solid rgba(180,230,245,0.50);
+      border-radius: 16px;
+      padding: 28px 34px;
+      color: #f0faff;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.50);
+    }
+    .panel h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: #FFE566;
+      text-shadow: 0 0 12px rgba(255,220,80,0.50), 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .panel input[type="text"],
+    .panel input[type="password"] {
+      width: 100%;
+      padding: 9px 12px;
+      margin-bottom: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 8px;
+      color: #e6edf3;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+    }
+    .panel input:focus { border-color: rgba(88,166,255,0.4); }
+    .panel button {
+      width: 100%;
+      padding: 9px;
+      margin-top: 4px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #3a9e6e, #4CAF82); color: #fff; }
+    .btn-primary:hover { background: linear-gradient(135deg, #4CAF82, #6dcfa0); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.05);
+      color: #c9d1d9;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.10); }
+    .btn-danger { background: linear-gradient(135deg, #b91c1c, #dc2626); color: #fff; margin-top: 8px; }
+
+    /* 로비 */
+    #lobby-panel {
+      top: 55px; left: 210px; width: 380px;
+      position: absolute;
+      background: rgba(10,20,50,0.92);
+      border: 1px solid rgba(180,230,245,0.55);
+      border-radius: 20px;
+      padding: 26px 30px 24px;
+      color: #f0faff;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.20);
+      animation: fadeUp 0.4s ease;
+    }
+    .lobby-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: rgba(255,230,140,0.90);
+      margin-bottom: 8px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 6px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.70);
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .mode-btn:hover { background: rgba(255,255,255,0.20); color: #fff; }
+    /* 이닝 버튼 활성 — 라벤더 */
+    .inning-btn.active,
+    .lobby-inning-btn.active {
+      background: rgba(123,108,246,0.35);
+      border-color: rgba(163,148,255,0.80);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(123,108,246,0.45);
+    }
+    /* 게임 모드 버튼 활성 — 피치/오렌지 */
+    .game-mode-btn.active {
+      background: rgba(240,160,80,0.30);
+      border-color: rgba(255,190,100,0.80);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(240,160,80,0.40);
+    }
+    /* 연습 모드 활성 — 틸 */
+    .game-mode-btn[data-mode="practice"].active {
+      background: rgba(91,191,181,0.30);
+      border-color: rgba(120,220,210,0.80);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(91,191,181,0.40);
+    }
+    .mode-btn.active div:last-child { color: rgba(255,255,255,0.80) !important; }
+
+    /* 설정 모달 */
+    #settings-modal {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      background: rgba(10,20,50,0.92);
+      border: 1px solid rgba(180,230,245,0.55);
+      border-radius: 18px;
+      padding: 28px 28px 22px;
+      color: #f0faff;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.50);
+      animation: fadeUp 0.25s ease;
+      z-index: 10;
+    }
+    #settings-modal h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: #FFE566;
+      text-shadow: 0 0 14px rgba(255,220,80,0.55), 0 2px 4px rgba(0,0,0,0.8);
+      margin-bottom: 18px;
+      text-align: center;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.88);
+    }
+    .settings-select {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(180,230,245,0.45);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      padding: 5px 10px;
+      outline: none;
+      cursor: pointer;
+    }
+    .settings-select option { background: #1a3a50; }
+    #lobby-language option,
+    #lobby-answer-language option { background: #1a3a50; }
+    #lobby-language:focus,
+    #lobby-answer-language:focus  { border-color: rgba(135,206,235,0.85); }
+
+    /* 대기실 */
+    #waiting-panel {
+      position: absolute;
+      top: 65px; left: 210px; width: 380px;
+      background: rgba(10,20,50,0.92);
+      border: 1px solid rgba(180,230,245,0.55);
+      border-radius: 20px;
+      padding: 26px 28px 22px;
+      color: #f0faff;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.20);
+      animation: fadeUp 0.4s ease;
+      text-align: center;
+    }
+    #room-code-display {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 30px; letter-spacing: 10px;
+      color: #fbbf24; margin: 4px 0 0;
+      text-shadow: 0 0 18px rgba(251,191,36,0.45);
+    }
+    .waiting-player-slot {
+      flex: 1;
+      padding: 16px 10px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(180,230,245,0.35);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-height: 100px;
+      justify-content: center;
+    }
+    .waiting-player-slot .slot-avatar {
+      font-size: 28px;
+      line-height: 1;
+    }
+    .waiting-player-slot .slot-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .waiting-player-slot .slot-status {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .slot-status.ready    { background: rgba(34,197,94,0.2);  color: #4ade80; border: 1px solid rgba(34,197,94,0.4); }
+    .slot-status.waiting  { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.45); border: 1px solid rgba(255,255,255,0.12); }
+    .slot-status.empty    { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.25); border: 1px dashed rgba(255,255,255,0.15); }
+    @keyframes dotPulse {
+      0%,80%,100% { opacity: 0.2; transform: scale(0.8); }
+      40%         { opacity: 1;   transform: scale(1); }
+    }
+    .dot-anim span {
+      display: inline-block;
+      width: 5px; height: 5px;
+      background: rgba(255,255,255,0.5);
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: dotPulse 1.4s infinite ease-in-out;
+    }
+    .dot-anim span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-anim span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* 게임 답변 바 */
+    #answer-bar {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(10,20,50,0.92);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 8px 10px;
+    }
+    #answer-input {
+      padding: 9px 16px;
+      width: 260px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: #e6edf3;
+      font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+    }
+    #answer-input:focus { border-color: rgba(88,166,255,0.45); }
+    #submit-btn {
+      padding: 9px 22px;
+      background: linear-gradient(135deg, #3a9e6e, #4CAF82);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #submit-btn:hover { background: linear-gradient(135deg, #4CAF82, #6dcfa0); }
+    #submit-btn:disabled { background: rgba(255,255,255,0.08); color: #444; cursor: not-allowed; }
+
+    /* 결과 */
+    #result-panel { top: 75px; left: 96px; width: 608px; text-align: center; }
+    #result-panel h2 { font-family: 'Bebas Neue', sans-serif; font-size: 32px; margin-bottom: 20px; letter-spacing: 2px; }
+    .score-board {
+      display: flex; justify-content: center; gap: 60px;
+      margin: 18px 0; font-size: 20px;
+    }
+    .score-board .team { text-align: center; color: #8b949e; }
+    .score-board .score-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 56px; color: #58a6ff; line-height: 1;
+    }
+    .winner-text { font-size: 22px; font-weight: 700; color: #3fb950; margin: 14px 0; }
+
+    /* 토스트 */
+    #toast {
+      position: absolute;
+      top: 18px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #fff;
+      padding: 9px 22px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    .hidden { display: none !important; }
+
+    /* ── 로비 하단 네비게이션 ─────────────────────────── */
+    .lobby-bottom-nav {
+      display: flex;
+      margin: 16px -30px -24px;
+      border-top: 1px solid rgba(180,230,245,0.35);
+      border-radius: 0 0 20px 20px;
+      overflow: hidden;
+    }
+    .nav-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 10px 4px 11px;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.55);
+      font-size: 10px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      letter-spacing: 0.3px;
+    }
+    .nav-tab .nav-icon { font-size: 17px; line-height: 1; }
+    .nav-tab:hover { background: rgba(255,255,255,0.10); color: #fff; }
+    .nav-tab.active { color: #fff; background: rgba(255,255,255,0.15); }
+    /* 탭 아이콘 개별 색상 */
+    #nav-ranking  .nav-icon { color: #FFB347; text-shadow: 0 0 8px rgba(255,179,71,0.6); }
+    #nav-shop     .nav-icon { color: #87CEEB; text-shadow: 0 0 8px rgba(135,206,235,0.6); }
+    #nav-friends  .nav-icon { color: #98FB98; text-shadow: 0 0 8px rgba(152,251,152,0.6); }
+    #nav-ads      .nav-icon { color: #DDA0DD; text-shadow: 0 0 8px rgba(221,160,221,0.6); }
+
+    /* ══ 게임 HUD (압축형, 50px) ═══════════════════════════ */
+    #game-hud { position:absolute; top:0; left:0; width:800px; pointer-events:none; }
+    #hud-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      background:rgba(3,7,18,0.96);
+      border-bottom:1px solid rgba(255,255,255,0.07);
+      padding:0 16px; height:50px;
+    }
+    .hud-team { display:flex; align-items:center; gap:10px; min-width:160px; }
+    .hud-team.right { flex-direction:row-reverse; }
+    .hud-team-name { font-size:12px; font-weight:700; color:rgba(255,255,255,0.5);
+                     letter-spacing:0.5px; text-shadow:0 1px 3px rgba(0,0,0,0.9); }
+    .hud-score { font-family:'Bebas Neue',monospace; font-size:34px; color:#ffffff; line-height:1;
+                 text-shadow:0 0 18px rgba(147,197,253,0.5), 0 2px 6px rgba(0,0,0,1); }
+    .hud-center { display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; }
+    .hud-inning { font-size:14px; font-weight:700; color:#93c5fd; letter-spacing:1px;
+                  text-shadow:0 1px 4px rgba(0,0,0,0.9); }
+    .hud-outs { display:flex; align-items:center; gap:5px; }
+    .hud-out-dot { width:11px; height:11px; border-radius:50%;
+                   border:2px solid rgba(255,255,255,0.2); }
+    .hud-out-dot.active { background:#ef4444; border-color:#f87171;
+                          box-shadow:0 0 8px rgba(239,68,68,0.9); }
+    #hud-count { font-size:10px; color:rgba(255,255,255,0.25); letter-spacing:2px; }
+    /* ── 타이머 바 (압박감 강화) ── */
+    #timer-bar-track {
+      height:10px; background:rgba(255,255,255,0.06); position:relative; overflow:hidden;
+    }
+    #timer-bar-fill {
+      height:10px; background:linear-gradient(90deg,#22c55e,#86efac);
+      width:100%; transition:width 1s linear, background 0.4s;
+    }
+    #timer-bar-fill.warn   { background:linear-gradient(90deg,#f59e0b,#fcd34d); }
+    #timer-bar-fill.danger {
+      background:linear-gradient(90deg,#dc2626,#f87171);
+      box-shadow:0 0 14px rgba(220,38,38,0.7);
+      animation:timerPulse 0.5s ease-in-out infinite alternate;
+    }
+    @keyframes timerPulse {
+      from { box-shadow:0 0 8px rgba(220,38,38,0.5); }
+      to   { box-shadow:0 0 20px rgba(220,38,38,0.9); }
+    }
+
+    /* ══ 게임 필드 패널 (컴팩트 다이아몬드) ══════════════ */
+    #game-field {
+      position:absolute; top:60px; left:0; width:800px; height:108px;
+      border-bottom:1px solid rgba(255,255,255,0.06); overflow:hidden;
+    }
+    #field-canvas { display:block; }
+
+    /* ══ 수비팀 뷰 (난이도 선택 패널) ════════════════════ */
+    #defense-panel {
+      position:absolute; top:170px; left:0; width:800px; height:362px;
+      background:rgba(3,7,18,0.97);
+      border-top:1px solid rgba(255,255,255,0.09);
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; gap:22px; padding:20px 48px;
+    }
+    .def-section-label {
+      font-size:11px; font-weight:800; letter-spacing:3px;
+      text-transform:uppercase; color:rgba(147,197,253,0.55);
+      text-shadow:0 1px 3px rgba(0,0,0,0.9);
+    }
+    .def-buttons { display:flex; gap:16px; width:100%; }
+    .diff-btn {
+      flex:1; padding:22px 10px;
+      background:rgba(255,255,255,0.05);
+      border:2px solid rgba(255,255,255,0.14); border-radius:18px;
+      color:#fff; font-family:'Inter',sans-serif; cursor:pointer;
+      transition:all 0.15s; text-align:center;
+    }
+    .diff-btn:disabled { opacity:0.25; cursor:not-allowed; }
+    .diff-btn.dimmed   { opacity:0.4; pointer-events:none; }
+    .diff-btn.diff-easy   { border-color:rgba(34,197,94,0.4); }
+    .diff-btn.diff-medium { border-color:rgba(251,191,36,0.4); }
+    .diff-btn.diff-hard   { border-color:rgba(239,68,68,0.4); }
+    .diff-btn.diff-easy.selected   { background:rgba(34,197,94,0.20); border-color:rgba(34,197,94,0.9);
+                                     box-shadow:0 0 18px rgba(34,197,94,0.35); transform:translateY(-3px); }
+    .diff-btn.diff-medium.selected { background:rgba(251,191,36,0.20); border-color:rgba(251,191,36,0.9);
+                                     box-shadow:0 0 18px rgba(251,191,36,0.35); transform:translateY(-3px); }
+    .diff-btn.diff-hard.selected   { background:rgba(239,68,68,0.20); border-color:rgba(239,68,68,0.9);
+                                     box-shadow:0 0 18px rgba(239,68,68,0.35); transform:translateY(-3px); }
+    .diff-btn.diff-easy:hover:not(:disabled) {
+      background:rgba(34,197,94,0.15); border-color:rgba(34,197,94,0.8);
+      transform:translateY(-3px); box-shadow:0 6px 20px rgba(34,197,94,0.25);
+    }
+    .diff-btn.diff-medium:hover:not(:disabled) {
+      background:rgba(251,191,36,0.15); border-color:rgba(251,191,36,0.8);
+      transform:translateY(-3px); box-shadow:0 6px 20px rgba(251,191,36,0.25);
+    }
+    .diff-btn.diff-hard:hover:not(:disabled) {
+      background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.8);
+      transform:translateY(-3px); box-shadow:0 6px 20px rgba(239,68,68,0.25);
+    }
+    .diff-btn-title { font-size:20px; font-weight:800; margin-bottom:4px;
+                      text-shadow:0 1px 4px rgba(0,0,0,0.9); }
+    .diff-btn-sub   { font-size:13px; color:rgba(255,255,255,0.40); margin-bottom:8px; }
+    .diff-btn-count { font-size:14px; font-weight:700;
+                      text-shadow:0 1px 3px rgba(0,0,0,0.9); }
+    .diff-btn.diff-easy   .diff-btn-count { color:#4ade80; }
+    .diff-btn.diff-medium .diff-btn-count { color:#fbbf24; }
+    .diff-btn.diff-hard   .diff-btn-count { color:#f87171; }
+    /* 수비 타이머 (상대방 잔여시간 표시) */
+    .def-timer-wrap {
+      width:100%; display:flex; flex-direction:column; align-items:center; gap:8px;
+    }
+    .def-timer-label {
+      font-size:9px; letter-spacing:2px; color:rgba(255,255,255,0.22);
+      text-transform:uppercase;
+    }
+    #def-timer-track {
+      width:100%; height:6px; background:rgba(255,255,255,0.08);
+      border-radius:3px; overflow:hidden;
+    }
+    #def-timer-fill {
+      height:6px; width:0%; background:linear-gradient(90deg,#22c55e,#86efac);
+      border-radius:3px; transition:width 1s linear, background 0.4s;
+    }
+    #def-timer-fill.warn   { background:linear-gradient(90deg,#f59e0b,#fcd34d); }
+    #def-timer-fill.danger { background:linear-gradient(90deg,#dc2626,#f87171); }
+    #def-countdown {
+      font-family:'Bebas Neue',monospace; font-size:22px; color:rgba(255,255,255,0.18);
+      min-width:30px; text-align:center; line-height:1;
+    }
+
+    /* ══ 단어 퍼즐 패널 (공격팀 전용) ════════════════════ */
+    #puzzle-panel {
+      position:absolute; top:170px; left:0; width:800px;
+      min-height:462px;
+      background:rgba(3,7,18,0.97);
+      border-top:1px solid rgba(255,255,255,0.09);
+      padding:18px 32px 16px;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    /* HINT 영역 */
+    #puzzle-hint {
+      text-align:center;
+      text-shadow:0 1px 5px rgba(0,0,0,0.9);
+    }
+    #puzzle-hint .hint-label {
+      font-size:11px; font-weight:800; letter-spacing:3px;
+      color:#FFE566; text-transform:uppercase; display:block;
+      margin-bottom:5px; text-shadow:0 0 10px rgba(255,229,102,0.5);
+    }
+    #puzzle-hint-text {
+      font-size:32px; font-weight:500; color:#FFE566;
+      font-family:'Noto Sans KR', 'Nunito', sans-serif;
+      display:block; line-height:1.3;
+      text-shadow:0 2px 8px rgba(0,0,0,0.9);
+    }
+    /* 타일 + 슬롯 행 */
+    .puzzle-row-label {
+      font-size:9px; font-weight:700; letter-spacing:2px;
+      text-transform:uppercase; color:rgba(255,255,255,0.25);
+      margin-bottom:5px;
+    }
+    .letter-tile {
+      width:68px; height:68px; background:rgba(255,255,255,0.15);
+      border:2px solid rgba(255,255,255,0.28); border-radius:20px;
+      color:#ffffff; font-size:36px; font-weight:400; letter-spacing:0.04em;
+      font-family:'Fredoka One', 'Nunito', sans-serif; cursor:pointer;
+      transition:all 0.15s; display:flex; align-items:center; justify-content:center;
+      text-shadow:0 2px 4px rgba(0,0,0,0.9); user-select:none; flex-shrink:0;
+    }
+    .letter-tile:hover:not(.used) {
+      background:rgba(99,179,237,0.30); border-color:rgba(99,179,237,0.8);
+      transform:translateY(-3px);
+      box-shadow:0 4px 14px rgba(99,179,237,0.4);
+    }
+    .letter-tile.used { opacity:0.18; cursor:default; transform:none; }
+    .answer-slot {
+      width:68px; height:68px; background:rgba(255,255,255,0.04);
+      border:2px dashed rgba(255,255,255,0.22); border-radius:20px;
+      color:#f0f6ff; font-size:36px; font-weight:400; letter-spacing:0.04em;
+      font-family:'Fredoka One', 'Nunito', sans-serif; display:flex; align-items:center;
+      justify-content:center; cursor:pointer; transition:all 0.15s;
+      text-shadow:0 2px 4px rgba(0,0,0,0.9); user-select:none; flex-shrink:0;
+    }
+    .answer-slot.filled {
+      background:rgba(99,179,237,0.18); border-style:solid;
+      border-color:rgba(99,179,237,0.6);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    .answer-slot.filled:hover { background:rgba(239,68,68,0.18); border-color:rgba(239,68,68,0.6); }
+    .answer-slot.correct {
+      background:rgba(34,197,94,0.22); border-style:solid;
+      border-color:rgba(34,197,94,0.85); color:#4ade80;
+      box-shadow:0 0 10px rgba(34,197,94,0.30); pointer-events:none;
+    }
+    .answer-slot.prefilled {
+      border-style:solid; border-color:rgba(255,255,255,0.30);
+      background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.45); cursor:default;
+    }
+    .answer-slot.prefilled:hover { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.30); }
+    .answer-slot.revealed {
+      border-style:solid; border-color:rgba(255,229,102,0.70);
+      background:rgba(255,229,102,0.10); color:#FFE566; cursor:default;
+    }
+    .answer-slot.revealed:hover { background:rgba(255,229,102,0.10); border-color:rgba(255,229,102,0.70); }
+    /* ══ 아이템 바 (게임 하단 고정) ══ */
+    #item-bar {
+      position:absolute; bottom:0; left:0; width:800px;
+      background:rgba(3,7,18,0.97); border-top:1px solid rgba(255,255,255,0.08);
+      padding:8px 32px 10px; display:flex; flex-direction:column; gap:6px;
+      box-sizing:border-box;
+    }
+    #item-count {
+      font-size:10px; font-weight:700; letter-spacing:2px;
+      color:rgba(255,229,102,0.55); text-transform:uppercase; text-align:right;
+    }
+    #item-buttons { display:flex; gap:5px; }
+    .item-btn {
+      flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      padding:7px 3px; background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.13); border-radius:10px;
+      color:#e6edf3; font-family:'Inter',sans-serif; cursor:pointer;
+      transition:all 0.15s; line-height:1;
+    }
+    .item-btn:hover:not(:disabled) {
+      background:rgba(255,229,102,0.12); border-color:rgba(255,229,102,0.45);
+      transform:translateY(-2px);
+    }
+    .item-btn .item-icon  { font-size:17px; }
+    .item-btn .item-label { font-size:9px; font-weight:700; letter-spacing:0.3px;
+                            white-space:nowrap; color:rgba(255,255,255,0.60); }
+    .item-btn:disabled { opacity:0.28; cursor:not-allowed; transform:none; pointer-events:none; }
+    /* 방해 버튼 — 수비 중 활성 (보라색 강조) */
+    #item-sabotage.defense-active {
+      background:rgba(168,85,247,0.18); border-color:rgba(168,85,247,0.65);
+      color:#c084fc;
+    }
+    #item-sabotage.defense-active:hover:not(:disabled) {
+      background:rgba(168,85,247,0.30); border-color:rgba(168,85,247,0.90);
+      box-shadow:0 0 14px rgba(168,85,247,0.35);
+    }
+    /* 타이머 */
+    #puzzle-timer-text { font-family:'Bebas Neue',monospace; font-size:30px; color:#4ade80;
+                         min-width:36px; text-align:center; line-height:1;
+                         text-shadow:0 0 14px rgba(74,222,128,0.7); }
+    #puzzle-timer-text.warn   { color:#fbbf24; text-shadow:0 0 14px rgba(251,191,36,0.7); }
+    #puzzle-timer-text.danger { color:#f87171; text-shadow:0 0 14px rgba(248,113,113,0.7); }
+
+    /* ══ 연습 모드 HUD ══════════════════════════════════════ */
+    #practice-hud {
+      position:absolute; top:0; left:0; width:800px; height:60px;
+      background:rgba(3,7,18,0.96); border-bottom:1px solid rgba(255,255,255,0.07);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 24px; box-sizing:border-box;
+    }
+    #practice-hud .ph-badge {
+      padding:4px 12px; border-radius:20px; font-size:11px; font-weight:800;
+      letter-spacing:2px; text-transform:uppercase;
+    }
+    .ph-badge.easy   { background:rgba(34,197,94,0.20);  color:#4ade80; }
+    .ph-badge.medium { background:rgba(251,191,36,0.20); color:#fbbf24; }
+    .ph-badge.hard   { background:rgba(239,68,68,0.20);  color:#f87171; }
+    #practice-stats  { font-size:13px; color:rgba(255,255,255,0.65); }
+    #practice-stats span { font-weight:700; }
+    #btn-practice-exit {
+      padding:5px 14px; background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.14); border-radius:8px;
+      color:rgba(255,255,255,0.55); font-size:12px; font-family:'Inter',sans-serif;
+      cursor:pointer; transition:all 0.15s;
+    }
+    #btn-practice-exit:hover { background:rgba(255,255,255,0.12); color:#fff; }
+
+    /* ══ 연습 모드 난이도 선택 패널 ════════════════════════ */
+    #practice-select-panel {
+      top:90px; left:210px; width:380px;
+    }
+    #practice-select-panel h3 {
+      font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
+      color:#FFE566; text-shadow:0 0 14px rgba(255,220,80,0.55);
+      margin-bottom:6px; text-align:center;
+    }
+    #practice-select-panel p {
+      font-size:13px; color:rgba(255,255,255,0.50); text-align:center; margin-bottom:18px;
+    }
+    .practice-diff-btn {
+      flex:1; padding:14px 8px; border:none; border-radius:12px; cursor:pointer;
+      font-family:'Inter',sans-serif; font-size:13px; font-weight:700;
+      transition:all 0.15s; display:flex; flex-direction:column; align-items:center; gap:4px;
+    }
+    .practice-diff-btn.easy   { background:rgba(34,197,94,0.22);  color:#4ade80;  border:1px solid rgba(34,197,94,0.55); }
+    .practice-diff-btn.medium { background:rgba(251,191,36,0.22); color:#fbbf24; border:1px solid rgba(251,191,36,0.55); }
+    .practice-diff-btn.hard   { background:rgba(239,68,68,0.22);  color:#f87171;  border:1px solid rgba(239,68,68,0.55); }
+    .practice-diff-btn:hover  { filter:brightness(1.25); transform:translateY(-2px); }
+    .practice-diff-btn .pdb-sub { font-size:11px; opacity:0.65; font-weight:400; }
+
+    /* ══ 콜드게임 배너 ═════════════════════════════════════ */
+    #cold-game-banner {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:rgba(30,6,6,0.93); border:1px solid rgba(239,68,68,0.45);
+      border-radius:16px; padding:18px 44px; text-align:center; z-index:20;
+      animation:fadeUp 0.4s ease;
+    }
+    #cold-game-banner .cold-title {
+      font-family:'Bebas Neue',monospace; font-size:28px; letter-spacing:4px;
+      color:#f87171; text-shadow:0 0 22px rgba(239,68,68,0.65);
+    }
+    #cold-game-banner .cold-sub { font-size:12px; color:rgba(255,255,255,0.45); margin-top:5px; }
+  </style>
+</head>
+<body>
+<div id="game-container">
+  <div class="overlay" id="overlay">
+
+    <!-- 로그인 패널 -->
+    <div id="login-panel">
+      <div class="login-title">
+        <span class="ball-icon">⚾</span>
+        <h1>WORD BASEBALL</h1>
+        <p>단어로 홈런을 터뜨려라</p>
+      </div>
+
+      <!-- 구글 로그인 -->
+      <a id="btn-google-login" href="/api/auth/google"
+         style="display:flex;align-items:center;justify-content:center;gap:10px;
+                width:100%;padding:11px 14px;margin-bottom:10px;
+                background:#ffffff;border:1px solid #dadce0;border-radius:10px;
+                color:#3c4043;font-size:14px;font-weight:600;font-family:'Inter',sans-serif;
+                text-decoration:none;cursor:pointer;transition:box-shadow 0.15s,background 0.15s;
+                box-sizing:border-box;">
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          <path fill="none" d="M0 0h48v48H0z"/>
+        </svg>
+        Google로 계속하기
+      </a>
+
+      <!-- 이메일 로그인 토글 버튼 -->
+      <button class="btn btn-outline" id="btn-toggle-email" style="margin-bottom:0;">✉️ 이메일로 로그인</button>
+
+      <!-- 이메일 로그인 필드 (기본 숨김) -->
+      <div id="email-login-section" class="hidden" style="margin-top:10px;">
+        <div class="error-msg" id="login-error"></div>
+        <div class="input-group">
+          <span class="input-icon">👤</span>
+          <input class="auth-input" type="text" id="login-username" placeholder="아이디" maxlength="20" />
+        </div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <span class="input-icon">🔒</span>
+          <input class="auth-input" type="password" id="login-password" placeholder="비밀번호" />
+        </div>
+        <button class="btn btn-login-main" id="btn-login" style="margin-bottom:8px;">로그인</button>
+        <button class="btn btn-ghost" id="btn-to-register" style="color:#93c5fd;font-size:13px;">계정이 없으신가요? 회원가입 →</button>
+      </div>
+
+      <div class="divider" style="margin:12px 0 8px;">또는</div>
+      <button class="btn btn-ghost" id="btn-guest">👥 게스트로 빠르게 입장</button>
+    </div>
+
+    <!-- 회원가입 패널 -->
+    <div id="register-panel" class="hidden">
+      <div class="login-title" style="margin-bottom:16px;">
+        <span class="ball-icon" style="font-size:34px;margin-bottom:6px;">⚾</span>
+        <h1 style="font-size:32px;letter-spacing:3px;">SIGN UP</h1>
+        <p>Word Baseball 계정 만들기</p>
+      </div>
+      <div class="error-msg" id="register-error"></div>
+      <div class="input-group" style="margin-bottom:14px;">
+        <span class="input-icon">✏️</span>
+        <input class="auth-input" type="text" id="reg-nickname" placeholder="닉네임 (2~12자)" maxlength="12" />
+      </div>
+      <div class="input-group" style="margin-bottom:14px;">
+        <span class="input-icon">👤</span>
+        <input class="auth-input" type="text" id="reg-username" placeholder="아이디 (영문/숫자, 4~20자)" maxlength="20" />
+      </div>
+      <div class="input-group" style="margin-bottom:14px;">
+        <span class="input-icon">🔒</span>
+        <input class="auth-input" type="password" id="reg-password" placeholder="비밀번호 (6자 이상)" />
+      </div>
+      <div class="input-group" style="margin-bottom:20px;">
+        <span class="input-icon">🔑</span>
+        <input class="auth-input" type="password" id="reg-password-confirm" placeholder="비밀번호 확인" />
+      </div>
+      <button class="btn btn-outline" id="btn-register">계정 만들기</button>
+      <div style="text-align:center;margin-top:14px;">
+        <button class="btn btn-ghost" id="btn-to-login" style="font-size:13px;">← 로그인 화면으로 돌아가기</button>
+      </div>
+    </div>
+
+    <!-- 로비 패널 -->
+    <div id="lobby-panel" class="hidden">
+
+      <!-- 유저 정보 헤더 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;">
+        <div>
+          <div style="font-size:17px;font-weight:700;color:#ffffff;line-height:1.2;" id="lobby-nickname">—</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:3px;">🪙 <span id="lobby-coins">0</span> 코인</div>
+        </div>
+        <button id="btn-settings"
+                style="background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);
+                       border-radius:10px;color:#fff;font-size:18px;width:38px;height:38px;
+                       cursor:pointer;display:flex;align-items:center;justify-content:center;
+                       transition:background 0.15s;"
+                title="설정">⚙️</button>
+      </div>
+
+      <!-- 힌트 언어 선택 -->
+      <div style="margin-bottom:12px;">
+        <div class="lobby-section-label">🌐 힌트 언어</div>
+        <div style="position:relative;">
+          <select id="lobby-language"
+                  style="width:100%;padding:10px 14px;
+                         background:rgba(255,255,255,0.18);
+                         border:1px solid rgba(180,230,245,0.45);
+                         border-radius:10px;color:#ffffff;
+                         font-size:13px;font-family:'Inter',sans-serif;
+                         outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
+                         transition:border-color 0.15s;">
+            <option value="ko">🇰🇷 한국어</option>
+            <option value="en">🇺🇸 영어</option>
+            <option value="ja">🇯🇵 일본어</option>
+            <option value="zh">🇨🇳 중국어 (简体)</option>
+            <option value="es">🇪🇸 스페인어</option>
+            <option value="fr">🇫🇷 프랑스어</option>
+            <option value="de">🇩🇪 독일어</option>
+            <option value="it">🇮🇹 이탈리아어</option>
+            <option value="pt">🇧🇷 포르투갈어</option>
+            <option value="ru">🇷🇺 러시아어</option>
+            <option value="vi">🇻🇳 베트남어</option>
+            <option value="id">🇮🇩 인도네시아어</option>
+            <option value="th">🇹🇭 태국어</option>
+            <option value="ar">🇸🇦 아랍어</option>
+          </select>
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                       pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
+        </div>
+      </div>
+
+      <!-- 정답 언어 선택 -->
+      <div style="margin-bottom:6px;">
+        <div class="lobby-section-label">⌨️ 정답 언어</div>
+        <div style="position:relative;">
+          <select id="lobby-answer-language"
+                  style="width:100%;padding:10px 14px;
+                         background:rgba(255,255,255,0.18);
+                         border:1px solid rgba(180,230,245,0.45);
+                         border-radius:10px;color:#ffffff;
+                         font-size:13px;font-family:'Inter',sans-serif;
+                         outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
+                         transition:border-color 0.15s;">
+            <option value="en">🇺🇸 영어</option>
+            <option value="ko">🇰🇷 한국어</option>
+            <option value="ja">🇯🇵 일본어</option>
+            <option value="zh">🇨🇳 중국어 (简体)</option>
+            <option value="es">🇪🇸 스페인어</option>
+            <option value="fr">🇫🇷 프랑스어</option>
+            <option value="de">🇩🇪 독일어</option>
+            <option value="it">🇮🇹 이탈리아어</option>
+            <option value="pt">🇧🇷 포르투갈어</option>
+            <option value="ru">🇷🇺 러시아어</option>
+            <option value="vi">🇻🇳 베트남어</option>
+            <option value="id">🇮🇩 인도네시아어</option>
+            <option value="th">🇹🇭 태국어</option>
+            <option value="ar">🇸🇦 아랍어</option>
+          </select>
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                       pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
+        </div>
+      </div>
+      <!-- 언어 중복 경고 -->
+      <div id="lang-same-warning"
+           style="display:none;margin-bottom:14px;padding:7px 12px;
+                  background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);
+                  border-radius:8px;color:#fbbf24;font-size:12px;font-weight:600;text-align:center;">
+        ⚠️ 힌트와 정답 언어가 같습니다
+      </div>
+
+      <!-- 게임 모드 선택 -->
+      <div style="margin-bottom:24px;">
+        <div class="lobby-section-label">게임 모드</div>
+        <div style="display:flex;gap:8px;">
+          <button class="mode-btn game-mode-btn active" data-mode="cpu" style="flex:1;">
+            <div>🤖 솔로 vs CPU</div>
+            <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">공격만 진행<br>10점↑ 시 200코인</div>
+          </button>
+          <button class="mode-btn game-mode-btn" data-mode="pvp" style="flex:1;">
+            <div>👥 1vs1 PvP</div>
+            <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">실시간 대전<br>승리 시 코인 획득</div>
+          </button>
+          <button class="mode-btn game-mode-btn" data-mode="practice" style="flex:1;">
+            <div>📚 연습 모드</div>
+            <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">점수 없음<br>단어 학습용</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 이닝 선택 (CPU 모드 전용) -->
+      <div id="lobby-inning-section" style="margin-bottom:20px;">
+        <div class="lobby-section-label">이닝 수</div>
+        <div style="display:flex;gap:8px;">
+          <button class="mode-btn lobby-inning-btn active" data-inning="2" style="flex:1;">2이닝</button>
+          <button class="mode-btn lobby-inning-btn" data-inning="4" style="flex:1;">4이닝</button>
+          <button class="mode-btn lobby-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
+        </div>
+      </div>
+
+      <!-- 게임 시작 -->
+      <button class="btn btn-login-main" id="btn-start-game" style="font-size:15px;padding:13px;">⚾ 게임 시작</button>
+
+      <!-- 하단 네비게이션 -->
+      <nav class="lobby-bottom-nav">
+        <button class="nav-tab" id="nav-ranking">
+          <span class="nav-icon">🏆</span>랭킹
+        </button>
+        <button class="nav-tab" id="nav-shop">
+          <span class="nav-icon">🛒</span>상점
+        </button>
+        <button class="nav-tab" id="nav-friends">
+          <span class="nav-icon">👥</span>친구방
+        </button>
+        <button class="nav-tab" id="nav-ads">
+          <span class="nav-icon">📢</span>광고방
+        </button>
+      </nav>
+    </div>
+
+    <!-- 설정 모달 -->
+    <div id="settings-modal" class="hidden">
+      <h3>⚙ 설정</h3>
+      <div class="settings-row">
+        <span>언어</span>
+        <select class="settings-select" id="settings-language">
+          <option value="ko">🇰🇷 한국어</option>
+          <option value="en">🇺🇸 English</option>
+          <option value="ja">🇯🇵 日本語</option>
+          <option value="zh">🇨🇳 中文 (简体)</option>
+          <option value="zh-tw">🇹🇼 中文 (繁體)</option>
+          <option value="es">🇪🇸 Español</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="de">🇩🇪 Deutsch</option>
+          <option value="pt">🇧🇷 Português</option>
+          <option value="ru">🇷🇺 Русский</option>
+          <option value="ar">🇸🇦 العربية</option>
+          <option value="hi">🇮🇳 हिन्दी</option>
+          <option value="vi">🇻🇳 Tiếng Việt</option>
+          <option value="th">🇹🇭 ภาษาไทย</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span>음향 효과</span>
+        <select class="settings-select" id="settings-sfx">
+          <option value="on">켜기</option>
+          <option value="off">끄기</option>
+        </select>
+      </div>
+      <button class="btn btn-login-main" id="btn-settings-save" style="margin-top:6px;">저장</button>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn btn-ghost" id="btn-settings-close" style="font-size:13px;color:#ffffff;">닫기</button>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.10);margin-top:14px;padding-top:12px;text-align:center;">
+        <button class="btn btn-ghost" id="btn-logout" style="font-size:13px;color:rgba(248,113,113,0.85);">로그아웃</button>
+      </div>
+    </div>
+
+    <!-- 대기실 패널 -->
+    <div id="waiting-panel" class="hidden">
+
+      <!-- 방 코드 헤더 -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:rgba(147,197,253,0.65);margin-bottom:4px;">대기 중...</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+          <div id="room-code-display">------</div>
+          <button id="btn-copy-code"
+                  style="background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);
+                         border-radius:8px;color:#fff;font-size:12px;font-weight:600;
+                         font-family:'Inter',sans-serif;padding:5px 12px;cursor:pointer;
+                         transition:background 0.15s;">복사</button>
+        </div>
+      </div>
+
+      <!-- 이닝 선택 -->
+      <div style="margin-bottom:18px;">
+        <div class="lobby-section-label">이닝 선택</div>
+        <div style="display:flex;gap:8px;">
+          <button class="mode-btn inning-btn active" data-inning="2">2이닝</button>
+          <button class="mode-btn inning-btn" data-inning="4">4이닝</button>
+          <button class="mode-btn inning-btn" data-inning="6">6이닝</button>
+        </div>
+      </div>
+
+      <!-- 플레이어 슬롯 2칸 -->
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <!-- 나 -->
+        <div class="waiting-player-slot" id="slot-me">
+          <div class="slot-avatar">🧢</div>
+          <div class="slot-name" id="slot-me-name">나</div>
+          <div class="slot-status waiting" id="slot-me-status">대기 중</div>
+        </div>
+        <!-- VS -->
+        <div style="display:flex;align-items:center;font-family:'Bebas Neue';font-size:20px;color:rgba(255,255,255,0.25);letter-spacing:2px;flex-shrink:0;">VS</div>
+        <!-- 상대방 -->
+        <div class="waiting-player-slot" id="slot-opp">
+          <div class="slot-avatar" style="opacity:0.3;">👤</div>
+          <div class="slot-name" style="color:rgba(255,255,255,0.3);">상대방</div>
+          <div class="slot-status empty" id="slot-opp-status">
+            <span class="dot-anim"><span></span><span></span><span></span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 준비 완료 버튼 -->
+      <button class="btn btn-login-main" id="btn-ready" style="font-size:14px;padding:12px;">✓ 준비 완료</button>
+
+      <!-- 나가기 -->
+      <div style="text-align:center;margin-top:12px;">
+        <button class="btn btn-ghost" id="btn-leave" style="font-size:13px;color:#ffffff;">← 나가기</button>
+      </div>
+    </div>
+
+    <!-- 게임 답변 바 -->
+    <div id="answer-bar" class="hidden">
+      <input type="text" id="answer-input" placeholder="한국어 뜻을 입력하세요..." maxlength="50" />
+      <button id="submit-btn">제출</button>
+    </div>
+
+    <!-- 결과 패널 -->
+    <div class="panel hidden" id="result-panel">
+      <h2 id="result-title">GAME OVER</h2>
+      <div class="score-board">
+        <div class="team">
+          <div id="result-top-name">팀 1</div>
+          <div class="score-num" id="result-top-score">0</div>
+        </div>
+        <div style="font-size:28px;align-self:center;color:#30363d;">vs</div>
+        <div class="team">
+          <div id="result-bottom-name">팀 2</div>
+          <div class="score-num" id="result-bottom-score">0</div>
+        </div>
+      </div>
+      <div class="winner-text" id="winner-text"></div>
+      <div id="coin-reward" style="display:none;margin:10px 0;padding:8px 18px;
+           background:rgba(255,229,102,0.15);border:1px solid rgba(255,229,102,0.45);
+           border-radius:10px;color:#FFE566;font-size:13px;font-weight:700;
+           text-align:center;">🪙 200코인 획득!</div>
+      <button class="btn-primary" id="btn-play-again"
+              style="width:200px;margin:0 auto;display:block;border-radius:8px;border:none;cursor:pointer;padding:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;">다시 하기</button>
+      <button class="btn-secondary" id="btn-to-lobby"
+              style="width:200px;margin:8px auto 0;display:block;border-radius:8px;cursor:pointer;padding:10px;font-family:'Inter',sans-serif;font-size:14px;">로비로</button>
+    </div>
+
+    <!-- ══ 연습 모드 HUD ════════════════════════════════ -->
+    <div id="practice-hud" class="hidden">
+      <span id="practice-diff-badge" class="ph-badge easy">초급</span>
+      <span id="practice-stats">정답 <span id="ps-correct">0</span>  오답 <span id="ps-wrong">0</span></span>
+      <button id="btn-practice-exit">← 나가기</button>
+    </div>
+
+    <!-- ══ 연습 모드 난이도 선택 ════════════════════════ -->
+    <div class="panel hidden" id="practice-select-panel">
+      <h3>연습 모드</h3>
+      <p>난이도를 선택하세요</p>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button class="practice-diff-btn easy" data-diff="1">
+          <span>초급</span><span class="pdb-sub">4~5글자</span>
+        </button>
+        <button class="practice-diff-btn medium" data-diff="2">
+          <span>중급</span><span class="pdb-sub">5~7글자</span>
+        </button>
+        <button class="practice-diff-btn hard" data-diff="3">
+          <span>고급</span><span class="pdb-sub">6~9글자</span>
+        </button>
+      </div>
+      <button class="btn-secondary" id="btn-practice-back" style="width:100%;padding:9px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
+    </div>
+
+    <!-- ══ 게임 HUD ══════════════════════════════════════ -->
+    <div id="game-hud" class="hidden">
+      <div id="hud-bar">
+        <div class="hud-team">
+          <div class="hud-team-name" id="hud-top-name">TOP</div>
+          <div class="hud-score" id="hud-top-score">0</div>
+        </div>
+        <div class="hud-center">
+          <div class="hud-inning" id="hud-inning">1이닝 초 ▲</div>
+          <div class="hud-outs">
+            <span style="font-size:9px;color:rgba(255,255,255,0.28);margin-right:4px;letter-spacing:1px;">OUT</span>
+            <div class="hud-out-dot" id="hud-out-0"></div>
+            <div class="hud-out-dot" id="hud-out-1"></div>
+            <div class="hud-out-dot" id="hud-out-2"></div>
+          </div>
+          <div id="hud-count">S○○  B○○○</div>
+        </div>
+        <div class="hud-team">
+          <div class="hud-team-name" id="hud-bottom-name">BOTTOM</div>
+          <div class="hud-score" id="hud-bottom-score">0</div>
+        </div>
+      </div>
+      <div id="timer-bar-track"><div id="timer-bar-fill"></div></div>
+    </div>
+
+    <!-- ══ 게임 필드 (컴팩트 다이아몬드) ════════════════ -->
+    <div id="game-field" class="hidden">
+      <canvas id="field-canvas" width="800" height="178"></canvas>
+    </div>
+
+    <!-- ══ 수비팀 뷰 (난이도 선택) ══════════════════════ -->
+    <div id="defense-panel" class="hidden">
+      <div class="def-section-label">🎯 투구 난이도 선택</div>
+      <div class="def-buttons">
+        <button class="diff-btn diff-easy" id="diff-easy">
+          <div class="diff-btn-title">초급</div>
+          <div class="diff-btn-sub">상대방 1루타</div>
+          <div class="diff-btn-count" id="diff-easy-count">남은 —개</div>
+        </button>
+        <button class="diff-btn diff-medium" id="diff-medium">
+          <div class="diff-btn-title">중급</div>
+          <div class="diff-btn-sub">상대방 2루타</div>
+          <div class="diff-btn-count" id="diff-medium-count">남은 —개</div>
+        </button>
+        <button class="diff-btn diff-hard" id="diff-hard">
+          <div class="diff-btn-title">고급</div>
+          <div class="diff-btn-sub">상대방 홈런</div>
+          <div class="diff-btn-count" id="diff-hard-count">남은 —개</div>
+        </button>
+      </div>
+      <!-- 상대방 잔여 시간 (읽기 전용) -->
+      <div class="def-timer-wrap hidden" id="def-timer-wrap">
+        <div class="def-timer-label">상대방 남은 시간</div>
+        <div id="def-timer-track"><div id="def-timer-fill"></div></div>
+        <div id="def-countdown">—</div>
+      </div>
+    </div>
+
+    <!-- ══ 단어 퍼즐 패널 (공격팀) ══════════════════════ -->
+    <div id="puzzle-panel" class="hidden">
+      <!-- 1. 철자 타일 -->
+      <div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">철자 타일</div>
+        <div id="letter-tiles" style="display:flex;gap:6px;flex-wrap:wrap;min-height:68px;"></div>
+      </div>
+      <!-- 2. 힌트 -->
+      <div id="puzzle-hint"><span class="hint-label">HINT</span><span id="puzzle-hint-text">—</span></div>
+      <!-- 3. 정답 입력 슬롯 -->
+      <div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">정답 입력</div>
+        <div id="answer-slots" style="display:flex;gap:6px;flex-wrap:wrap;min-height:68px;"></div>
+      </div>
+      <!-- 4. 타이머 + 버튼 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div id="puzzle-timer-text">15</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="puzzle-clear" style="padding:6px 14px;background:rgba(255,255,255,0.06);
+            color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.12);
+            border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;
+            text-shadow:0 1px 2px rgba(0,0,0,0.6);">지우기</button>
+          <button id="puzzle-submit" style="padding:7px 16px;background:linear-gradient(135deg,#3a9e6e,#4CAF82);
+            color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;
+            font-family:'Inter',sans-serif;cursor:pointer;
+            box-shadow:0 3px 12px rgba(34,197,94,0.45);transition:all 0.15s;
+            text-shadow:0 1px 2px rgba(0,0,0,0.5);">제출</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ 아이템 바 (공격·수비 공통) ══════════════════════ -->
+    <div id="item-bar" class="hidden">
+      <div id="item-count">아이템 5/5</div>
+      <div id="item-buttons">
+        <button class="item-btn" id="item-first">
+          <span class="item-icon">🔤</span>
+          <span class="item-label">첫글자</span>
+        </button>
+        <button class="item-btn" id="item-ends">
+          <span class="item-icon">🔡</span>
+          <span class="item-label">양끝글자</span>
+        </button>
+        <button class="item-btn" id="item-random">
+          <span class="item-icon">💡</span>
+          <span class="item-label">랜덤3글자</span>
+        </button>
+        <button class="item-btn" id="item-time">
+          <span class="item-icon">⏱️</span>
+          <span class="item-label">시간연장</span>
+        </button>
+        <button class="item-btn" id="item-swap">
+          <span class="item-icon">🔄</span>
+          <span class="item-label">단어교체</span>
+        </button>
+        <button class="item-btn" id="item-sabotage">
+          <span class="item-icon">⚡</span>
+          <span class="item-label">방해</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ 콜드게임 배너 ═════════════════════════════════ -->
+    <div id="cold-game-banner" class="hidden">
+      <div class="cold-title">❄️ COLD GAME</div>
+      <div class="cold-sub">10점차 이상 — 말 공격 완료 후 종료</div>
+    </div>
+
+    <div id="toast"></div>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   소켓 & 전역 상태
+═══════════════════════════════════════════════════════ */
+const socket = io({ autoConnect: true });
+const State = {
+  username: null, roomCode: null, myTeam: null,
+  players: [], currentWord: null, gameState: null,
+};
+
+/* ═══════════════════════════════════════════════════════
+   Phaser — 야구장 배경 씬
+═══════════════════════════════════════════════════════ */
+class BootScene extends Phaser.Scene {
+  constructor() { super('Boot'); }
+  create() { this.scene.start('BG'); }
+}
+
+class BGScene extends Phaser.Scene {
+  constructor() { super('BG'); }
+
+  preload() {
+    this.load.image('stadium',     '/images/stadium_bg.png');
+    this.load.image('light_tower', '/images/light_tower.png');
+    this.load.image('base',        '/images/base.png');
+
+    this.load.on('filecomplete', (key) =>
+      console.log('[Phaser] 로드 완료:', key)
+    );
+    this.load.on('loaderror', (file) =>
+      console.error('[Phaser] 로드 실패:', file.key, file.url)
+    );
+  }
+
+  create() {
+    const loaded = this.textures.getTextureKeys().filter(k => !k.startsWith('_'));
+    console.log('[Phaser] create() 진입 — 로드된 텍스처:', loaded);
+
+    const W = 800, H = 600;
+
+    /* ── 베이스 좌표 ── */
+    const HOME  = { x: 400, y: 494 };
+    const B1    = { x: 510, y: 388 };
+    const B2    = { x: 400, y: 282 };
+    const B3    = { x: 290, y: 388 };
+    const MOUND = { x: 400, y: 408 };
+
+    /* ── 1. 배경 이미지 2종 (모드별 전환) ─────────── */
+    this.stadiumBg = this.add.image(W / 2, H / 2, 'stadium').setDisplaySize(W, H);
+    this.lobbyBg   = this.add.image(W / 2, H / 2, 'light_tower')
+      .setDisplaySize(W, H).setVisible(false);
+
+    /* ── 2. 조명탑 이미지 (좌·우) — 게임 모드 전용 ── */
+    const TOWER_CFG = [
+      { x: 72,  flipX: false },
+      { x: 728, flipX: true  },
+    ];
+    this.towerImages = [];
+    this.lightGlows  = [];
+    TOWER_CFG.forEach((t, i) => {
+      const img = this.add.image(t.x, 290, 'light_tower')
+        .setDisplaySize(76, 220).setOrigin(0.5, 1).setFlipX(t.flipX).setVisible(false);
+      this.towerImages.push(img);
+
+      const glowG = this.add.graphics().setVisible(false);
+      glowG.fillStyle(0xfffae0, 0.22);
+      glowG.fillCircle(t.x, 78, 36);
+      glowG.fillStyle(0xffffff, 0.5);
+      glowG.fillCircle(t.x, 78, 12);
+      this.lightGlows.push(glowG);
+
+      this.tweens.add({
+        targets: glowG,
+        alpha: { from: 0.6, to: 1.0 },
+        duration: 1500 + i * 350,
+        yoyo: true, repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: i * 420,
+      });
+    });
+
+    /* ── 3. 마운드 + 홈 플레이트 — 게임 모드 전용 ─── */
+    this.fieldGraphics = this.add.graphics().setVisible(false);
+    const g = this.fieldGraphics;
+    g.fillStyle(0x9e7248, 1);
+    g.fillCircle(MOUND.x, MOUND.y, 22);
+    g.fillStyle(0xb08858, 0.75);
+    g.fillCircle(MOUND.x, MOUND.y, 14);
+    g.fillStyle(0xffffff, 0.75);
+    g.fillRect(MOUND.x - 7, MOUND.y - 2, 14, 4);
+    g.fillStyle(0xfafaf5, 1);
+    g.fillPoints([
+      { x: HOME.x,      y: HOME.y - 10 },
+      { x: HOME.x + 9,  y: HOME.y - 4  },
+      { x: HOME.x + 9,  y: HOME.y + 5  },
+      { x: HOME.x - 9,  y: HOME.y + 5  },
+      { x: HOME.x - 9,  y: HOME.y - 4  },
+    ], true);
+    g.lineStyle(1, 0xffffff, 0.32);
+    g.strokeRect(HOME.x - 22, HOME.y - 12, 16, 24);
+    g.strokeRect(HOME.x +  6, HOME.y - 12, 16, 24);
+
+    /* ── 4. 베이스 (1·2·3루) — base.png, 게임 모드 전용 */
+    this._basePos = [B1, B2, B3];
+    this.baseHighlightGfx = [B1, B2, B3].map(() => this.add.graphics().setVisible(false));
+    this.baseImages = [B1, B2, B3].map(b =>
+      this.add.image(b.x, b.y, 'base').setDisplaySize(26, 26).setVisible(false)
+    );
+    this.baseObjects = this.baseHighlightGfx;
+
+    /* ── 5. 주자 이모티콘 (🏃) ──────────────────────── */
+    this._runnerPos  = [B1, B2, B3, HOME];
+    this.runnerTexts = [B1, B2, B3, HOME].map(b =>
+      this.add.text(b.x, b.y - 34, '🏃', { fontSize: '28px' })
+        .setOrigin(0.5, 1).setDepth(10).setVisible(false)
+    );
+
+    /* ── 6. HUD 스코어보드 — 게임 모드 전용 ──────── */
+    this.hudGfx = this.add.graphics().setVisible(false);
+    this.hudGfx.fillStyle(0x040810, 0.90);
+    this.hudGfx.fillRoundedRect(46, 7, 708, 64, 10);
+    this.hudGfx.lineStyle(1, 0x1a2c42, 0.8);
+    this.hudGfx.strokeRoundedRect(46, 7, 708, 64, 10);
+    this.hudGfx.lineStyle(1, 0x1a2c42, 0.5);
+    this.hudGfx.lineBetween(400, 13, 400, 65);
+
+    const lblSt = { fontSize: '12px', fill: '#506070', fontFamily: "'Inter',monospace" };
+    const scSt  = { fontSize: '26px', fill: '#dde6f0', fontFamily: "'Bebas Neue','Inter',monospace" };
+    const infSt = { fontSize: '11px', fill: '#3e5060', fontFamily: "'Inter',monospace" };
+
+    this.hudTopLbl    = this.add.text(200, 17, 'TOP',    lblSt).setOrigin(0.5).setVisible(false);
+    this.hudBottomLbl = this.add.text(600, 17, 'BOTTOM', lblSt).setOrigin(0.5).setVisible(false);
+    this.scoreTextTop    = this.add.text(200, 44, '0', scSt).setOrigin(0.5).setVisible(false);
+    this.scoreTextBottom = this.add.text(600, 44, '0', scSt).setOrigin(0.5).setVisible(false);
+    this.inningText = this.add.text(400, 22, '1이닝 초',          infSt).setOrigin(0.5).setVisible(false);
+    this.countText  = this.add.text(400, 44, '아웃 0  S○○  B○○○', infSt).setOrigin(0.5).setVisible(false);
+
+    this.wordText = this.add.text(W / 2, 205, '', {
+      fontSize: '34px', fill: '#f0883e', fontStyle: 'bold',
+      fontFamily: "'Bebas Neue','Inter',monospace", letterSpacing: 3,
+    }).setOrigin(0.5).setVisible(false);
+    this.hintText = this.add.text(W / 2, 247, '', {
+      fontSize: '13px', fill: '#607088', fontFamily: "'Inter',monospace",
+    }).setOrigin(0.5).setVisible(false);
+    this.feedText = this.add.text(W / 2, 278, '', {
+      fontSize: '20px', fontStyle: 'bold', fill: '#3fb950',
+      fontFamily: "'Inter',sans-serif",
+    }).setOrigin(0.5).setVisible(false);
+
+    this.registry.set('bgScene', this);
+    updateScoreboard(null);
+  }
+
+  /* ── 화면 모드 전환: 'login' | 'lobby' | 'game' ── */
+  switchMode(mode) {
+    const isGame  = mode === 'game';
+    const isLobby = mode === 'lobby';
+
+    this.stadiumBg.setVisible(!isLobby);
+    this.lobbyBg.setVisible(isLobby);
+
+    this.towerImages.forEach(t => t.setVisible(isGame));
+    this.lightGlows.forEach(g => g.setVisible(isGame));
+
+    this.fieldGraphics.setVisible(isGame);
+    this.baseImages.forEach(b => b.setVisible(isGame));
+    this.baseHighlightGfx.forEach(g => g.setVisible(isGame));
+    if (!isGame) this.runnerTexts?.forEach(r => r.setVisible(false));
+
+    const hv = isGame;
+    this.hudGfx.setVisible(hv);
+    this.hudTopLbl.setVisible(hv);
+    this.hudBottomLbl.setVisible(hv);
+    this.scoreTextTop.setVisible(hv);
+    this.scoreTextBottom.setVisible(hv);
+    this.inningText.setVisible(hv);
+    this.countText.setVisible(hv);
+    this.wordText.setVisible(hv);
+    this.hintText.setVisible(hv);
+    this.feedText.setVisible(hv);
+  }
+
+  /* 주자 강조 (updateScoreboard에서 호출) */
+  highlightBase(idx, active) {
+    if (!this.baseImages || !this._basePos) return;
+    const b  = this._basePos[idx];
+    const hg = this.baseHighlightGfx[idx];
+    hg.clear();
+    if (active) {
+      hg.fillStyle(0xff8c00, 0.35);
+      hg.fillCircle(b.x, b.y, 18);
+      this.baseImages[idx].setTint(0xf0883e);
+    } else {
+      this.baseImages[idx].clearTint();
+    }
+    // 🏃 주자 이모티콘
+    const rt = this.runnerTexts?.[idx];
+    if (rt) {
+      rt.setVisible(active);
+      if (active) {
+        rt.setScale(0.4);
+        this.tweens.add({ targets: rt, scale: 1, duration: 220, ease: 'Back.easeOut' });
+      }
+    }
+  }
+
+  /* 주자 이동 애니메이션 */
+  animateRunner(fromIdx, toIdx, onComplete) {
+    if (!this._basePos) { onComplete?.(); return; }
+    const from = this._basePos[fromIdx];
+    const to   = this._basePos[toIdx < 3 ? toIdx : 3];
+    const mover = this.add.text(from.x, from.y - 34, '🏃', { fontSize: '28px' })
+      .setOrigin(0.5, 1).setDepth(11);
+    this.tweens.add({
+      targets: mover,
+      x: to.x, y: to.y - 34,
+      duration: 350,
+      ease: 'Quad.easeOut',
+      onComplete: () => { mover.destroy(); onComplete?.(); },
+    });
+  }
+
+  /* ── 홈런 세레모니 ─────────────────────────────── */
+  playHomerunCeremony() {
+    const W = 800, H = 600;
+    const txt = this.add.text(W / 2, H / 2, '🎆 홈런!', {
+      fontSize: '82px', fontStyle: 'bold',
+      fontFamily: "'Bebas Neue','Inter',sans-serif",
+      fill: '#FFE566', stroke: '#cc4400', strokeThickness: 8,
+      shadow: { offsetX: 2, offsetY: 4, color: '#000', blur: 12, fill: true },
+    }).setOrigin(0.5).setScale(0).setDepth(200);
+
+    this.tweens.add({
+      targets: txt, scale: { from: 0, to: 1.15 },
+      duration: 320, ease: 'Back.easeOut',
+      onComplete: () => this.tweens.add({
+        targets: txt, scale: 1, duration: 120,
+        onComplete: () => this.tweens.add({
+          targets: txt, alpha: 0, delay: 800, duration: 350,
+          onComplete: () => txt.destroy(),
+        }),
+      }),
+    });
+
+    // 불꽃 파티클
+    const COLORS = [0xFFE566, 0xff8800, 0xff3333, 0xffffff, 0xffcc00, 0xff66aa];
+    for (let i = 0; i < 52; i++) {
+      const angle = (i / 52) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const speed = 90 + Math.random() * 210;
+      const size  = 3 + Math.random() * 6;
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+      const spark = this.add.graphics().setDepth(199);
+      spark.fillStyle(color, 1);
+      spark.fillCircle(0, 0, size);
+      spark.setPosition(W / 2, H / 2);
+      this.tweens.add({
+        targets: spark,
+        x: W / 2 + Math.cos(angle) * speed,
+        y: H / 2 + Math.sin(angle) * speed,
+        alpha: { from: 1, to: 0 },
+        scaleX: { from: 1, to: 0.1 }, scaleY: { from: 1, to: 0.1 },
+        duration: 800 + Math.random() * 700,
+        ease: 'Quad.easeOut',
+        delay: Math.random() * 160,
+        onComplete: () => spark.destroy(),
+      });
+    }
+  }
+
+  /* ── 득점 세레모니 ─────────────────────────────── */
+  playScoreCeremony(runs, side = 'top') {
+    const W = 800, H = 600;
+    const txt = this.add.text(W / 2, H / 2 + 40, `⚾ 득점! +${runs}`, {
+      fontSize: '54px', fontStyle: 'bold',
+      fontFamily: "'Bebas Neue','Inter',sans-serif",
+      fill: '#ffffff', stroke: '#22c55e', strokeThickness: 5,
+      shadow: { offsetX: 2, offsetY: 3, color: '#000', blur: 8, fill: true },
+    }).setOrigin(0.5).setScale(0).setDepth(150);
+
+    this.tweens.add({
+      targets: txt, scale: { from: 0, to: 1.05 },
+      duration: 230, ease: 'Back.easeOut',
+      onComplete: () => this.tweens.add({
+        targets: txt, alpha: 0, y: txt.y - 55,
+        delay: 480, duration: 420, ease: 'Quad.easeIn',
+        onComplete: () => txt.destroy(),
+      }),
+    });
+
+    // 점수 숫자 펄스
+    const scoreObj = side === 'top' ? this.scoreTextTop : this.scoreTextBottom;
+    if (scoreObj?.active) {
+      this.tweens.add({
+        targets: scoreObj, scale: { from: 1, to: 1.9 },
+        duration: 180, ease: 'Back.easeOut', yoyo: true,
+        onStart:    () => scoreObj.setStyle({ fill: '#facc15' }),
+        onComplete: () => { scoreObj.setStyle({ fill: '#dde6f0' }); scoreObj.setScale(1); },
+      });
+    }
+
+    // 화면 흔들기
+    this.cameras.main.shake(280, 0.006);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Phaser 게임 인스턴스
+═══════════════════════════════════════════════════════ */
+const phaserConfig = {
+  type: Phaser.AUTO,
+  width: 800, height: 600,
+  parent: 'game-container',
+  backgroundColor: '#020810',
+  scene: [BootScene, BGScene],
+};
+const game = new Phaser.Game(phaserConfig);
+
+/* ═══════════════════════════════════════════════════════
+   헬퍼
+═══════════════════════════════════════════════════════ */
+function show(id)  { document.getElementById(id).classList.remove('hidden'); }
+function hide(id)  { document.getElementById(id).classList.add('hidden'); }
+function hideAll() {
+  ['login-panel','register-panel','lobby-panel','settings-modal','waiting-panel',
+   'answer-bar','game-hud','practice-hud','practice-select-panel',
+   'game-field','defense-panel','puzzle-panel',
+   'item-bar','cold-game-banner','result-panel'].forEach(hide);
+}
+
+let toastTimer = null;
+function toast(msg, color = '#e6edf3') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color = color;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function updateScoreboard(gs) {
+  const bg = game.registry.get('bgScene');
+  if (!bg) return;
+  if (!gs) {
+    bg.scoreTextTop?.setText('0');
+    bg.scoreTextBottom?.setText('0');
+    bg.inningText?.setText('1이닝 초');
+    bg.countText?.setText('아웃 0  S○○  B○○○');
+    bg.wordText?.setText('');
+    bg.hintText?.setText('');
+    return;
+  }
+  const halfStr = gs.half === 'top' ? '초' : '말';
+  const sS = '●'.repeat(gs.strikes) + '○'.repeat(Math.max(0, 2 - gs.strikes));
+  const bS = '●'.repeat(gs.balls)   + '○'.repeat(Math.max(0, 3 - gs.balls));
+  bg.scoreTextTop?.setText(String(gs.score.top));
+  bg.scoreTextBottom?.setText(String(gs.score.bottom));
+  bg.inningText?.setText(`${gs.inning}이닝 ${halfStr}`);
+  bg.countText?.setText(`아웃 ${gs.outs}  S${sS}  B${bS}`);
+  // 베이스
+  if (bg.baseObjects && gs.bases) {
+    for (let i = 0; i < 3; i++) bg.highlightBase(i, gs.bases[i]);
+  }
+}
+
+function showWord(word, difficulty, category) {
+  const bg = game.registry.get('bgScene');
+  if (!bg) return;
+  const stars = ['', '★', '★★', '★★★'][difficulty] || '';
+  bg.wordText?.setText(word);
+  bg.hintText?.setText(`${category}  ${stars}`);
+  bg.feedText?.setText('');
+}
+
+function showFeedText(msg, color = '#3fb950') {
+  const bg = game.registry.get('bgScene');
+  if (!bg) return;
+  bg.feedText?.setStyle({ fill: color });
+  bg.feedText?.setText(msg);
+  setTimeout(() => bg.feedText?.setText(''), 2200);
+}
+
+function showHomerunCeremony() {
+  game.registry.get('bgScene')?.playHomerunCeremony?.();
+}
+function showScoreCeremony(runs, side = 'top') {
+  game.registry.get('bgScene')?.playScoreCeremony?.(runs, side);
+}
+
+/* ═══════════════════════════════════════════════════════
+   화면 전환
+═══════════════════════════════════════════════════════ */
+function _bgSwitch(mode) {
+  game.registry.get('bgScene')?.switchMode?.(mode);
+}
+
+function goLogin() {
+  hideAll();
+  show('login-panel');
+  _bgSwitch('login');
+  updateScoreboard(null);
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('email-login-section').classList.add('hidden');
+  document.getElementById('btn-toggle-email').textContent = '✉️ 이메일로 로그인';
+}
+function goLobby() {
+  hideAll();
+  show('lobby-panel');
+  _bgSwitch('lobby');
+  document.getElementById('lobby-nickname').textContent = State.username || '플레이어';
+  document.getElementById('lobby-coins').textContent = (State.coins ?? 0).toLocaleString();
+}
+function goWaiting(code) {
+  State.roomCode = code;
+  document.getElementById('room-code-display').textContent = code;
+  hideAll();
+  show('waiting-panel');
+  _bgSwitch('lobby');
+  // 이닝/모드 뱃지 업데이트
+  const inningLabel = `${State.selectedInning ?? 2}이닝 · 1vs1 PvP`;
+  document.getElementById('waiting-inning-badge').textContent = inningLabel;
+  // 내 슬롯 초기화
+  document.getElementById('slot-me-name').textContent = State.username || '나';
+  document.getElementById('slot-me-status').className  = 'slot-status waiting';
+  document.getElementById('slot-me-status').textContent = '대기 중';
+  // 상대방 슬롯 초기화
+  const oppSlot = document.getElementById('slot-opp');
+  oppSlot.querySelector('.slot-name').textContent      = '상대방';
+  oppSlot.querySelector('.slot-name').style.color      = 'rgba(255,255,255,0.3)';
+  oppSlot.querySelector('.slot-avatar').style.opacity  = '0.3';
+  document.getElementById('slot-opp-status').className  = 'slot-status empty';
+  document.getElementById('slot-opp-status').innerHTML  = '<span class="dot-anim"><span></span><span></span><span></span></span>';
+  // 준비 버튼 초기화
+  document.getElementById('btn-ready').disabled = false;
+  document.getElementById('btn-ready').textContent = '✓ 준비 완료';
+}
+function goGame() {
+  hideAll();
+  show('game-hud');
+  show('game-field');
+  _bgSwitch('game');
+  updateHUD(null);
+  initWordPool();
+}
+
+/* ── HUD 업데이트 ─────────────────────────────────────── */
+function updateHUD(gs) {
+  const topP    = State.players.find(p => p.team === 'top');
+  const bottomP = State.players.find(p => p.team === 'bottom');
+  document.getElementById('hud-top-name').textContent    = topP?.username    || 'TOP';
+  document.getElementById('hud-bottom-name').textContent = bottomP?.username || 'BOTTOM';
+  if (!gs) {
+    document.getElementById('hud-top-score').textContent    = '0';
+    document.getElementById('hud-bottom-score').textContent = '0';
+    document.getElementById('hud-inning').textContent = '1이닝 초 ▲';
+    document.getElementById('hud-count').textContent  = 'S○○  B○○○';
+    [0,1,2].forEach(i => document.getElementById(`hud-out-${i}`).classList.remove('active'));
+    return;
+  }
+  document.getElementById('hud-top-score').textContent    = String(gs.score?.top    ?? 0);
+  document.getElementById('hud-bottom-score').textContent = String(gs.score?.bottom ?? 0);
+  const halfStr = gs.half === 'top' ? '초 ▲' : '말 ▼';
+  document.getElementById('hud-inning').textContent = `${gs.inning}이닝 ${halfStr}`;
+  const sS = '●'.repeat(gs.strikes ?? 0) + '○'.repeat(Math.max(0, 2 - (gs.strikes ?? 0)));
+  const bS = '●'.repeat(gs.balls   ?? 0) + '○'.repeat(Math.max(0, 3 - (gs.balls   ?? 0)));
+  document.getElementById('hud-count').textContent = `S${sS}  B${bS}`;
+  [0,1,2].forEach(i => {
+    document.getElementById(`hud-out-${i}`).classList.toggle('active', i < (gs.outs ?? 0));
+  });
+  // 콜드게임 체크
+  const diff = Math.abs((gs.score?.top ?? 0) - (gs.score?.bottom ?? 0));
+  if (diff >= 10 && gs.half === 'bottom') show('cold-game-banner');
+  else hide('cold-game-banner');
+  drawFieldDiamond(gs);
+}
+
+/* ── 컴팩트 다이아몬드 필드 그리기 ────────────────────── */
+function drawFieldDiamond(gs) {
+  const canvas = document.getElementById('field-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = 800, H = 140;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  /* 배경 투명 */
+
+  /* 베이스 좌표 (컴팩트, 수직 중앙) */
+  const CX = 400;
+  const HOME = { x: CX,      y: 120 };
+  const B1   = { x: CX + 76, y:  68 };
+  const B2   = { x: CX,      y:  16 };
+  const B3   = { x: CX - 76, y:  68 };
+
+
+  /* 다이아몬드 외곽선 */
+  ctx.beginPath();
+  ctx.moveTo(HOME.x, HOME.y);
+  ctx.lineTo(B1.x, B1.y);
+  ctx.lineTo(B2.x, B2.y);
+  ctx.lineTo(B3.x, B3.y);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  /* 마운드 */
+  const moundY = HOME.y - (HOME.y - B2.y) * 0.43;
+  ctx.beginPath();
+  ctx.arc(CX, moundY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(200,170,120,0.40)';
+  ctx.fill();
+
+  /* 베이스 그리기 (사각형, 45도 회전) */
+  const bases     = gs?.bases ?? [false, false, false];
+  const basePos   = [B1, B2, B3];
+  function drawBase(pt, occupied) {
+    const SZ = 12;
+    ctx.save();
+    ctx.translate(pt.x, pt.y);
+    ctx.rotate(Math.PI / 4);
+    if (occupied) {
+      ctx.fillStyle = '#facc15';
+      ctx.shadowColor = 'rgba(250,204,21,0.95)';
+      ctx.shadowBlur = 16;
+      ctx.fillRect(-SZ/2, -SZ/2, SZ, SZ);
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-SZ/2, -SZ/2, SZ, SZ);
+    }
+    ctx.restore();
+  }
+  basePos.forEach((pt, i) => drawBase(pt, bases[i]));
+
+  /* 홈플레이트 */
+  ctx.save();
+  ctx.translate(HOME.x, HOME.y);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.shadowColor = 'rgba(255,255,255,0.35)';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.moveTo(0,-9); ctx.lineTo(7,-2); ctx.lineTo(5,6);
+  ctx.lineTo(-5,6); ctx.lineTo(-7,-2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  /* 공격/수비 표시 */
+  if (gs?.half) {
+    const label = gs.half === 'top' ? '▲ 공격' : '▼ 공격';
+    ctx.font = '700 11px Inter,sans-serif';
+    ctx.fillStyle = 'rgba(147,197,253,0.65)';
+    ctx.fillText(label, 14, H - 10);
+  }
+}
+
+/* ── 공격/수비 뷰 전환 ─────────────────────────────────── */
+function showOffenseView() {
+  hide('defense-panel');
+  hide('def-timer-wrap');
+  show('puzzle-panel');
+  show('item-bar');
+  _setItemMode('offense');
+}
+function showDefenseView() {
+  hide('puzzle-panel');
+  show('defense-panel');
+  show('item-bar');
+  _setItemMode('defense');
+}
+
+function _setItemMode(mode) {
+  const offenseIds = ['item-first','item-ends','item-random','item-time','item-swap'];
+  const isDefense = mode === 'defense';
+  const noItems = (State.itemsLeft ?? 0) <= 0;
+  offenseIds.forEach(id => {
+    document.getElementById(id).disabled = isDefense || noItems;
+  });
+  const sabBtn = document.getElementById('item-sabotage');
+  sabBtn.disabled = !isDefense || noItems;
+  sabBtn.classList.toggle('defense-active', isDefense && !noItems);
+}
+function showDefenseTimerPassive() {
+  show('def-timer-wrap');
+  const fill = document.getElementById('def-timer-fill');
+  const cnt  = document.getElementById('def-countdown');
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  fill.className = '';
+  requestAnimationFrame(() => {
+    fill.style.transition = 'width 1s linear, background 0.4s';
+  });
+  // 동기화는 startTimer 의 tick 에서 처리
+}
+
+/* ── 문제 풀 초기화 ────────────────────────────────────── */
+function initWordPool() {
+  const innings = State.selectedInning ?? 2;
+  State.wordPool = {
+    easy:   10 * innings,
+    medium:  5 * innings,
+    hard:    3 * innings,
+  };
+  updateDiffPanel();
+  initItems();
+}
+
+/* ── 아이템 시스템 ─────────────────────────────────────── */
+const ITEM_TOTAL = 5;
+
+function initItems() {
+  State.itemsLeft = ITEM_TOTAL;
+  updateItemUI();
+}
+
+function updateItemUI() {
+  const left = State.itemsLeft ?? ITEM_TOTAL;
+  document.getElementById('item-count').textContent = `아이템 ${left}/${ITEM_TOTAL}`;
+  // 공격/수비 모드는 _setItemMode 에서 관리 — 여기서는 전체 비활성화만 처리
+  if (left <= 0) {
+    ['item-first','item-ends','item-random','item-time','item-swap','item-sabotage']
+      .forEach(id => { document.getElementById(id).disabled = true; });
+    document.getElementById('item-sabotage').classList.remove('defense-active');
+  }
+}
+
+function _consumeItem() {
+  if ((State.itemsLeft ?? 0) <= 0) return false;
+  State.itemsLeft--;
+  updateItemUI();
+  return true;
+}
+
+function _revealSlot(si) {
+  if (!State.puzzleWord) return;
+  const letter = State.puzzleWord[si];
+  if (!letter) return;
+  if (State.answerIndices[si] !== null) return; // 이미 채워짐
+  const ti = State.puzzleTiles.findIndex((t, i) => !t.used && t.letter === letter);
+  if (ti === -1) return; // 같은 글자 타일 없음
+  State.puzzleTiles[ti].used = true;
+  State.answerIndices[si] = ti;
+  State.lockedSlots.add(si);
+  refreshPuzzleUI();
+}
+
+function useItem(type) {
+  if ((State.itemsLeft ?? 0) <= 0) return;
+  if (type === 'first') {
+    if (!_consumeItem()) return;
+    _revealSlot(0);
+    toast('🔤 첫 번째 글자 공개!', '#FFE566');
+  } else if (type === 'ends') {
+    if (!_consumeItem()) return;
+    _revealSlot(0);
+    _revealSlot((State.puzzleWord?.length ?? 1) - 1);
+    toast('🔡 양끝 글자 공개!', '#FFE566');
+  } else if (type === 'random') {
+    if (!_consumeItem()) return;
+    const len = State.puzzleWord?.length ?? 0;
+    const unrevealed = [];
+    for (let i = 0; i < len; i++) {
+      if (State.answerIndices[i] === null) unrevealed.push(i);
+    }
+    unrevealed.sort(() => Math.random() - 0.5).slice(0, 3).forEach(si => _revealSlot(si));
+    toast('💡 랜덤 3글자 공개!', '#FFE566');
+  } else if (type === 'time') {
+    if (!_consumeItem()) return;
+    _timerSec = Math.min(_timerSec + 10, 60);
+    document.getElementById('puzzle-timer-text').textContent = _timerSec;
+    toast('⏱️ 시간 +10초 연장!', '#FFE566');
+  } else if (type === 'swap') {
+    if (!_consumeItem()) return;
+    if (State.gameMode === 'cpu' || State.gameMode === 'practice') {
+      stopTimer();
+      hide('puzzle-panel');
+      toast('🔄 단어 교체!', '#93c5fd');
+      setTimeout(() => {
+        if (State.gameMode === 'cpu') _cpuNextTurn();
+        else _practiceNextWord();
+      }, 400);
+    } else {
+      socket.emit('action:use_item', { type: 'swap' });
+      toast('🔄 단어 교체 중…', '#93c5fd');
+    }
+  } else if (type === 'sabotage') {
+    if (State.gameMode === 'cpu' || State.gameMode === 'practice') return;
+    if (!_consumeItem()) return;
+    socket.emit('action:use_item', { type: 'sabotage', penalty: 5 });
+    toast('⚡ 방해 발동!', '#c084fc');
+  }
+}
+
+document.getElementById('item-first').onclick    = () => useItem('first');
+document.getElementById('item-ends').onclick     = () => useItem('ends');
+document.getElementById('item-random').onclick   = () => useItem('random');
+document.getElementById('item-time').onclick     = () => useItem('time');
+document.getElementById('item-swap').onclick     = () => useItem('swap');
+document.getElementById('item-sabotage').onclick = () => useItem('sabotage');
+
+socket.on('state:item_used', data => {
+  if (data.type === 'sabotage' && data.by_sid !== socket.id) {
+    _timerSec = Math.max(1, _timerSec - (data.penalty ?? 5));
+    document.getElementById('puzzle-timer-text').textContent = _timerSec;
+    toast('⚡ 상대가 방해를 사용했습니다! -5초', '#f87171');
+  }
+});
+function updateDiffPanel() {
+  const p = State.wordPool;
+  ['easy','medium','hard'].forEach(d => {
+    const cnt = p[d];
+    document.getElementById(`diff-${d}-count`).textContent = `남은 ${cnt}개`;
+    document.getElementById(`diff-${d}`).disabled = cnt <= 0;
+  });
+}
+
+/* ── 타이머 ────────────────────────────────────────────── */
+let _timerInterval = null;
+let _timerSec = 15;
+function startTimer(onExpire) {
+  stopTimer();
+  _timerSec = 15;
+  const fill = document.getElementById('timer-bar-fill');
+  const txt  = document.getElementById('puzzle-timer-text');
+  fill.style.transition = 'none';
+  fill.style.width = '100%';
+  fill.className = '';
+  requestAnimationFrame(() => {
+    fill.style.transition = 'width 1s linear, background 0.4s';
+  });
+  function tick() {
+    _timerSec--;
+    txt.textContent = _timerSec;
+    const pct = (_timerSec / 15 * 100).toFixed(1) + '%';
+    fill.style.width = pct;
+    if (_timerSec <= 4)      { fill.className = 'danger'; txt.className = 'danger'; }
+    else if (_timerSec <= 7) { fill.className = 'warn';   txt.className = 'warn'; }
+    // 수비 타이머 동기화 (읽기 전용)
+    const defFill = document.getElementById('def-timer-fill');
+    const defCnt  = document.getElementById('def-countdown');
+    if (defFill) { defFill.style.width = pct; defFill.className = fill.className; }
+    if (defCnt)  { defCnt.textContent = _timerSec; }
+    if (_timerSec <= 0) { stopTimer(); onExpire?.(); }
+  }
+  _timerInterval = setInterval(tick, 1000);
+}
+function stopTimer() {
+  clearInterval(_timerInterval);
+  _timerInterval = null;
+}
+
+/* ── 기본 힌트 슬롯 사전 배치 ─────────────────────────── */
+function _prefillSlot(si) {
+  const letter = State.puzzleWord[si];
+  if (!letter || State.answerIndices[si] !== null) return;
+  const ti = State.puzzleTiles.findIndex(t => !t.used && t.letter === letter);
+  if (ti === -1) return;
+  State.puzzleTiles[ti].used      = true;
+  State.puzzleTiles[ti].prefilled = true;
+  State.answerIndices[si]         = ti;
+  State.prefilledSlots.add(si);
+}
+
+/* ── 퍼즐 빌드 ─────────────────────────────────────────── */
+function buildPuzzle(wordData) {
+  const word   = (wordData.word || '').toUpperCase();
+  const hint   = wordData.meaning || wordData.hint || '';
+  const letters = word.split('');
+  // 셔플
+  const shuffled = [...letters].map((l, i) => ({ l, i }))
+    .sort(() => Math.random() - 0.5);
+
+  State.puzzleWord     = word;
+  State.puzzleTiles    = shuffled.map(s => ({ letter: s.l, srcIdx: s.i, used: false, prefilled: false }));
+  State.answerIndices  = new Array(word.length).fill(null);
+  State.lockedSlots    = new Set();
+  State.prefilledSlots = new Set();
+
+  document.getElementById('puzzle-hint-text').textContent = hint;
+
+  // 난이도별 기본 힌트: 첫 N글자 사전 배치
+  const preCount = { 1: 2, 2: 1, 3: 0 }[wordData.difficulty] ?? 0;
+  for (let i = 0; i < preCount; i++) _prefillSlot(i);
+
+  // 타일 렌더 (prefilled 타일은 타일 영역에서 제거)
+  const tilesEl = document.getElementById('letter-tiles');
+  tilesEl.innerHTML = '';
+  State.puzzleTiles.forEach((t, ti) => {
+    const btn = document.createElement('button');
+    btn.className = 'letter-tile';
+    btn.textContent = t.letter;
+    btn.dataset.ti = ti;
+    btn.onclick = () => selectTile(ti);
+    if (t.prefilled) btn.style.display = 'none';
+    tilesEl.appendChild(btn);
+  });
+
+  // 슬롯 렌더
+  const slotsEl = document.getElementById('answer-slots');
+  slotsEl.innerHTML = '';
+  for (let i = 0; i < word.length; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'answer-slot';
+    slot.dataset.si = i;
+    slot.onclick = () => clearSlot(i);
+    slotsEl.appendChild(slot);
+  }
+
+  refreshPuzzleUI();
+  showOffenseView();
+  startTimer(() => submitPuzzleAnswer(true)); // 시간 초과 = 스트라이크
+}
+
+function selectTile(ti) {
+  if (State.puzzleTiles[ti].used) return;
+  const nextEmpty = State.answerIndices.indexOf(null);
+  if (nextEmpty === -1) return;
+  State.puzzleTiles[ti].used = true;
+  State.answerIndices[nextEmpty] = ti;
+  refreshPuzzleUI();
+}
+
+function clearSlot(si) {
+  if (State.lockedSlots?.has(si) || State.prefilledSlots?.has(si)) return;
+  const ti = State.answerIndices[si];
+  if (ti === null) return;
+  State.puzzleTiles[ti].used = false;
+  State.answerIndices[si] = null;
+  refreshPuzzleUI();
+}
+
+function refreshPuzzleUI() {
+  const tiles = document.getElementById('letter-tiles').children;
+  State.puzzleTiles.forEach((t, ti) => {
+    if (t.prefilled) return; // prefilled 타일은 렌더 영역에 없음(숨김)
+    tiles[ti]?.classList.toggle('used', t.used);
+  });
+  const slots = document.getElementById('answer-slots').children;
+  State.answerIndices.forEach((ti, si) => {
+    if (!slots[si]) return;
+    const isPrefilled = State.prefilledSlots?.has(si);
+    const isLocked    = State.lockedSlots?.has(si);
+    if (ti !== null) {
+      slots[si].textContent = State.puzzleTiles[ti].letter;
+      if (isPrefilled)     slots[si].className = 'answer-slot prefilled';
+      else if (isLocked)   slots[si].className = 'answer-slot revealed';
+      else                 slots[si].className = 'answer-slot filled';
+    } else {
+      slots[si].textContent = '';
+      slots[si].className = 'answer-slot';
+    }
+  });
+}
+
+function clearPuzzle() {
+  State.answerIndices.forEach((ti, si) => {
+    if (State.lockedSlots?.has(si) || State.prefilledSlots?.has(si)) return;
+    if (ti !== null) State.puzzleTiles[ti].used = false;
+    State.answerIndices[si] = null;
+  });
+  refreshPuzzleUI();
+}
+
+function submitPuzzleAnswer(timedOut = false) {
+  stopTimer();
+  const answer = timedOut
+    ? ''
+    : State.answerIndices.map(ti => ti !== null ? State.puzzleTiles[ti].letter : '').join('').toLowerCase();
+
+  if (State.gameMode === 'cpu' || State.gameMode === 'practice') {
+    _handleLocalAnswer(answer, timedOut);
+    return;
+  }
+
+  socket.emit('action:answer', { answer, time_left: _timerSec });
+  hide('puzzle-panel');
+  hide('defense-panel');
+}
+/* ═══════════════════════════════════════════════════════
+   로컬 게임 (솔로 CPU / 연습 모드)
+═══════════════════════════════════════════════════════ */
+
+/* ── 로컬 야구 엔진 ──────────────────────────────────── */
+const LocalGame = {
+  inning: 1, outs: 0, strikes: 0, balls: 0,
+  bases: [false,false,false], score: 0, maxInnings: 2, gameOver: false,
+
+  reset(maxInnings) {
+    Object.assign(this, {
+      inning:1, outs:0, strikes:0, balls:0,
+      bases:[false,false,false], score:0,
+      maxInnings, gameOver:false,
+    });
+  },
+
+  toHUD() {
+    return {
+      inning: this.inning, half:'top',
+      outs: this.outs, strikes: this.strikes, balls: this.balls,
+      bases: [...this.bases],
+      score: { top: this.score, bottom: 0 },
+    };
+  },
+
+  hit(type) {
+    const adv = { single:1, double:2, triple:3, homerun:4 };
+    const n = adv[type] || 1;
+    let runs = 0;
+    const nb = [false,false,false];
+    for (let b = 2; b >= 0; b--) {
+      if (!this.bases[b]) continue;
+      const pos = b + n;
+      if (pos >= 3) runs++; else nb[pos] = true;
+    }
+    const bPos = n - 1;
+    if (bPos < 3) nb[bPos] = true; else runs++;
+    this.bases = nb;
+    this.score += runs;
+    this.strikes = 0; this.balls = 0;
+    return { event:'hit', hit_type:type, runs };
+  },
+
+  strike() {
+    this.strikes++;
+    let out = false;
+    if (this.strikes >= 3) {
+      this.strikes = 0; this.outs++;
+      out = true;
+      if (this.outs >= 3) this._endInning();
+    }
+    return { event:'strike', out };
+  },
+
+  _endInning() {
+    this.outs = 0; this.strikes = 0; this.balls = 0;
+    this.bases = [false,false,false];
+    this.inning++;
+    if (this.inning > this.maxInnings) this.gameOver = true;
+  },
+};
+
+/* ── 공통 유틸 ─────────────────────────────────────────── */
+async function fetchLocalWord(difficulty) {
+  try {
+    const res = await fetch(`/api/words/random?difficulty=${difficulty}`, { credentials:'include' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+function _localHitType(difficulty) {
+  if (difficulty === 1) return 'single';
+  if (difficulty === 2) return 'double';
+  return 'homerun';
+}
+
+/* ── 로컬 정답 처리 ──────────────────────────────────── */
+function _handleLocalAnswer(answer, timedOut) {
+  const word = State.currentWord;
+  if (!word) return;
+  const correct = !timedOut && answer === word.word.toLowerCase();
+
+  if (State.gameMode === 'practice') {
+    _handlePracticeAnswer(correct, word);
+  } else {
+    _handleCpuAnswer(correct, timedOut, word);
+  }
+}
+
+/* ── CPU 모드 ─────────────────────────────────────────── */
+function startCpuGame() {
+  LocalGame.reset(State.selectedInning ?? 2);
+  State.gameMode = 'cpu';
+  State.players  = [
+    { sid:'player', username: State.username || 'PLAYER', team:'top' },
+    { sid:'cpu',    username:'CPU', team:'bottom' },
+  ];
+  State.myTeam = 'top';
+  hideAll();
+  show('game-hud'); show('game-field'); show('item-bar');
+  _bgSwitch('game');
+  initWordPool();
+  updateHUD(LocalGame.toHUD());
+  updateScoreboard(LocalGame.toHUD());
+  _cpuNextTurn();
+}
+
+function _cpuPickDifficulty() {
+  const r = Math.random();
+  return r < 0.50 ? 1 : r < 0.85 ? 2 : 3;
+}
+
+async function _cpuNextTurn() {
+  if (LocalGame.gameOver) { _endCpuGame(); return; }
+  const diff = _cpuPickDifficulty();
+  const word = await fetchLocalWord(diff);
+  if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
+  State.currentWord = word;
+  buildPuzzle(word);
+}
+
+function _handleCpuAnswer(correct, timedOut, word) {
+  hide('puzzle-panel');
+  let result;
+  if (correct) {
+    const hitType = _localHitType(word.difficulty);
+    result = LocalGame.hit(hitType);
+    const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
+    toast(`${labels[hitType]}  +${result.runs}점`, '#f0883e');
+    showFeedText(`${labels[hitType]}  ${word.word}`, '#f0883e');
+    if (hitType === 'homerun') showHomerunCeremony();
+    else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
+  } else {
+    result = LocalGame.strike();
+    const outMsg = result.out ? `  → 아웃 (${LocalGame.outs}/3)` : '';
+    toast(`스트라이크${outMsg}`, '#f85149');
+    if (!timedOut) {
+      _showCorrectAnswer(word.word);
+      setTimeout(() => { hide('puzzle-panel'); _afterCpuAnswer(); }, 2000);
+      updateHUD(LocalGame.toHUD());
+      updateScoreboard(LocalGame.toHUD());
+      return;
+    }
+    showFeedText(`✗ 정답: ${word.word}`, '#f85149');
+  }
+  updateHUD(LocalGame.toHUD());
+  updateScoreboard(LocalGame.toHUD());
+  setTimeout(() => _afterCpuAnswer(), 1800);
+}
+
+function _afterCpuAnswer() {
+  if (LocalGame.gameOver) { _endCpuGame(); return; }
+  _cpuNextTurn();
+}
+
+function _endCpuGame() {
+  const score = LocalGame.score;
+  const coin  = score >= 10;
+  const data  = {
+    score: { top: score, bottom: 0 },
+    winner: score > 0 ? 'top' : 'tie',
+    coin,
+  };
+  goResult(data);
+}
+
+/* ── 연습 모드 ──────────────────────────────────────────── */
+function startPracticeSelect() {
+  hideAll();
+  show('practice-select-panel');
+}
+
+function startPracticeGame(difficulty) {
+  State.gameMode = 'practice';
+  State.practiceStats = { correct:0, wrong:0, difficulty };
+  hideAll();
+  show('practice-hud'); show('game-field'); show('item-bar');
+  _bgSwitch('game');
+  const labels = { 1:'초급', 2:'중급', 3:'고급' };
+  const cls    = { 1:'easy', 2:'medium', 3:'hard' };
+  const badge  = document.getElementById('practice-diff-badge');
+  badge.textContent = labels[difficulty] || '초급';
+  badge.className   = `ph-badge ${cls[difficulty] || 'easy'}`;
+  initItems();
+  _updatePracticeStats();
+  _practiceNextWord();
+}
+
+function _updatePracticeStats() {
+  const s = State.practiceStats;
+  document.getElementById('ps-correct').textContent = s.correct;
+  document.getElementById('ps-wrong').textContent   = s.wrong;
+}
+
+async function _practiceNextWord() {
+  const word = await fetchLocalWord(State.practiceStats.difficulty);
+  if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
+  State.currentWord = word;
+  buildPuzzle(word);
+}
+
+function _handlePracticeAnswer(correct, word) {
+  const s = State.practiceStats;
+  if (correct) {
+    s.correct++;
+    toast(`🎉 정답!  ${word.word}`, '#4ade80');
+    showFeedText(`정답!  ${word.word}`, '#4ade80');
+    hide('puzzle-panel');
+    setTimeout(() => _practiceNextWord(), 1500);
+  } else {
+    s.wrong++;
+    toast(`✗ 정답: ${word.word}`, '#f85149');
+    _showCorrectAnswer(word.word);
+    setTimeout(() => { hide('puzzle-panel'); _practiceNextWord(); }, 2000);
+  }
+  _updatePracticeStats();
+}
+
+/* ── 연습 모드 버튼 이벤트 ─────────────────────────────── */
+document.querySelectorAll('.practice-diff-btn').forEach(btn => {
+  btn.onclick = () => startPracticeGame(parseInt(btn.dataset.diff));
+});
+document.getElementById('btn-practice-back').onclick = () => { hideAll(); show('lobby-panel'); };
+document.getElementById('btn-practice-exit').onclick = () => {
+  State.gameMode = null;
+  hideAll(); show('lobby-panel');
+};
+
+function goResult(data) {
+  stopTimer();
+  hideAll();
+  show('result-panel');
+  const topP    = State.players.find(p => p.team === 'top');
+  const bottomP = State.players.find(p => p.team === 'bottom');
+  document.getElementById('result-top-name').textContent    = topP?.username    || 'TOP';
+  document.getElementById('result-bottom-name').textContent = bottomP?.username || 'BOTTOM';
+  document.getElementById('result-top-score').textContent    = data.score?.top    ?? 0;
+  document.getElementById('result-bottom-score').textContent = data.score?.bottom ?? 0;
+  const winMsg = data.winner === 'tie' ? '무승부!' : data.winner === State.myTeam ? '승리! 🎉' : '패배...';
+  document.getElementById('winner-text').textContent = winMsg;
+  const coinDiv = document.getElementById('coin-reward');
+  if (data.coin) {
+    State.coins = (State.coins ?? 0) + 200;
+    coinDiv.style.display = 'block';
+  } else {
+    coinDiv.style.display = 'none';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   REST helpers
+═══════════════════════════════════════════════════════ */
+async function apiPost(url, body) {
+  const res = await fetch(url, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+async function loadRooms() {
+  try {
+    const res  = await fetch('/api/rooms/', { credentials: 'include' });
+    const data = await res.json();
+    const list = document.getElementById('room-list');
+    list.innerHTML = '';
+    if (!data.rooms?.length) {
+      list.innerHTML = '<div style="color:#4a5568;font-size:13px;padding:6px;">대기 중인 방 없음</div>';
+      return;
+    }
+    data.rooms.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'room-item';
+      div.innerHTML = `<span style="font-size:14px;">${r.code} <span style="color:#6e7f95;">— ${r.host}</span></span>
+        <button class="btn-primary" onclick="joinRoomByCode('${r.code}')"
+          style="width:auto;padding:5px 14px;font-size:12px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-family:'Inter',sans-serif;">입장</button>`;
+      list.appendChild(div);
+    });
+  } catch (e) { console.error(e); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   버튼 이벤트
+═══════════════════════════════════════════════════════ */
+/* ── 이메일 섹션 토글 ────────────────────────────────────── */
+document.getElementById('btn-toggle-email').onclick = () => {
+  const sec = document.getElementById('email-login-section');
+  const isHidden = sec.classList.contains('hidden');
+  sec.classList.toggle('hidden');
+  document.getElementById('btn-toggle-email').textContent = isHidden ? '✉️ 이메일 로그인 닫기' : '✉️ 이메일로 로그인';
+  if (isHidden) document.getElementById('login-username').focus();
+};
+
+document.getElementById('btn-login').onclick = async () => {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const data = await apiPost('/api/auth/login', { username, password });
+  if (data.error) { document.getElementById('login-error').textContent = data.error; return; }
+  State.username = data.user.username;
+  goLobby();
+};
+document.getElementById('btn-to-register').onclick = () => {
+  hide('login-panel'); show('register-panel');
+  document.getElementById('register-error').textContent = '';
+};
+document.getElementById('btn-guest').onclick = () => {
+  State.username = 'Guest' + Math.floor(Math.random() * 9000 + 1000);
+  goLobby();
+};
+document.getElementById('btn-register').onclick = async () => {
+  const errEl = document.getElementById('register-error');
+  errEl.textContent = '';
+  const nickname = document.getElementById('reg-nickname').value.trim();
+  const username = document.getElementById('reg-username').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const confirm  = document.getElementById('reg-password-confirm').value;
+
+  if (!nickname || nickname.length < 2) { errEl.textContent = '닉네임은 2자 이상이어야 합니다.'; return; }
+  if (!username || username.length < 4) { errEl.textContent = '아이디는 4자 이상이어야 합니다.'; return; }
+  if (password.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+  if (password !== confirm) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; return; }
+  const data = await apiPost('/api/auth/register', { username, password, nickname });
+  if (data.error) { errEl.textContent = data.error; return; }
+  State.username = data.user?.nickname || data.user?.username || username;
+  goLobby();
+};
+document.getElementById('btn-to-login').onclick = () => { hide('register-panel'); show('login-panel'); };
+
+/* ── 이닝 선택 ─────────────────────────────────────────── */
+State.selectedInning = 2;
+State.selectedMode   = 'cpu';
+State.coins          = 0;
+State.hintLang       = 'ko';
+State.answerLang     = 'en';
+
+document.querySelectorAll('.inning-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.inning-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.selectedInning = parseInt(btn.dataset.inning);
+  };
+});
+
+document.querySelectorAll('.lobby-inning-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.lobby-inning-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.selectedInning = parseInt(btn.dataset.inning);
+  };
+});
+
+document.querySelectorAll('.game-mode-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.selectedMode = btn.dataset.mode;
+    document.getElementById('lobby-inning-section').style.display =
+      btn.dataset.mode === 'cpu' ? 'block' : 'none';
+  };
+});
+
+/* ── 게임 시작 ─────────────────────────────────────────── */
+function syncLangState() {
+  State.hintLang   = document.getElementById('lobby-language').value;
+  State.answerLang = document.getElementById('lobby-answer-language').value;
+  const warn = document.getElementById('lang-same-warning');
+  warn.style.display = (State.hintLang === State.answerLang) ? 'block' : 'none';
+}
+document.getElementById('lobby-language').addEventListener('change', syncLangState);
+document.getElementById('lobby-answer-language').addEventListener('change', syncLangState);
+
+document.getElementById('btn-start-game').onclick = () => {
+  syncLangState();
+  if (State.selectedMode === 'pvp') {
+    socket.emit('action:create_room', { username: State.username, innings: State.selectedInning });
+  } else if (State.selectedMode === 'practice') {
+    startPracticeSelect();
+  } else {
+    startCpuGame();
+  }
+};
+
+/* ── 로그아웃 ──────────────────────────────────────────── */
+document.getElementById('btn-logout').onclick = async () => {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  State.username = null; State.roomCode = null;
+  goLogin();
+};
+
+/* ── 설정 모달 ─────────────────────────────────────────── */
+document.getElementById('btn-settings').onclick = () => show('settings-modal');
+document.getElementById('btn-settings-close').onclick = () => hide('settings-modal');
+document.getElementById('btn-settings-save').onclick = () => {
+  State.language = document.getElementById('settings-language').value;
+  State.sfx      = document.getElementById('settings-sfx').value;
+  hide('settings-modal');
+  toast('설정이 저장되었습니다.', '#4ade80');
+};
+
+/* ── 로비 하단 네비게이션 ─────────────────────────────── */
+['nav-ranking','nav-shop','nav-friends','nav-ads'].forEach(id => {
+  document.getElementById(id).onclick = () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    toast('준비 중입니다 🚧', '#fbbf24');
+  };
+});
+
+function joinRoomByCode(code) { socket.emit('action:join_room', { code, username: State.username }); }
+document.getElementById('btn-ready').onclick = () => {
+  socket.emit('action:ready', { hintLang: State.hintLang ?? 'ko', answerLang: State.answerLang ?? 'en' });
+  document.getElementById('btn-ready').disabled = true;
+  document.getElementById('btn-ready').textContent = '⏳ 준비 완료 — 상대방 대기 중';
+  document.getElementById('slot-me-status').className  = 'slot-status ready';
+  document.getElementById('slot-me-status').textContent = '준비 완료 ✓';
+};
+document.getElementById('btn-leave').onclick = () => {
+  socket.emit('action:leave_room', {}); State.roomCode = null; goLobby();
+};
+document.getElementById('btn-copy-code').onclick = () => {
+  const code = document.getElementById('room-code-display').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('방 코드가 복사됐습니다!', '#93c5fd'));
+};
+document.getElementById('puzzle-submit').onclick = () => submitPuzzleAnswer();
+document.getElementById('puzzle-clear').onclick  = () => clearPuzzle();
+
+/* 난이도 선택 버튼 */
+function resetDiffButtons() {
+  ['easy','medium','hard'].forEach(d => {
+    const btn = document.getElementById(`diff-${d}`);
+    btn.classList.remove('selected', 'dimmed');
+  });
+}
+
+['easy','medium','hard'].forEach(d => {
+  document.getElementById(`diff-${d}`).onclick = () => {
+    if (!State.wordPool || State.wordPool[d] <= 0) return;
+    const btn = document.getElementById(`diff-${d}`);
+    if (btn.classList.contains('selected') || btn.classList.contains('dimmed')) return;
+    State.wordPool[d]--;
+    updateDiffPanel();
+    // 선택한 버튼 하이라이트, 나머지 비활성화
+    ['easy','medium','hard'].forEach(other => {
+      const ob = document.getElementById(`diff-${other}`);
+      if (other === d) { ob.classList.add('selected'); }
+      else             { ob.classList.add('dimmed'); }
+    });
+    const diffMap = { easy: 1, medium: 2, hard: 3 };
+    socket.emit('action:select_difficulty', { difficulty: diffMap[d] });
+    hide('difficulty-panel');
+  };
+});
+document.getElementById('btn-play-again').onclick = () => {
+  if (State.gameMode === 'cpu') {
+    startCpuGame();
+  } else if (State.gameMode === 'practice') {
+    startPracticeSelect();
+  } else {
+    goWaiting(State.roomCode);
+  }
+};
+document.getElementById('btn-to-lobby').onclick = () => {
+  if (State.gameMode === 'cpu' || State.gameMode === 'practice') {
+    State.gameMode = null;
+    goLobby();
+  } else {
+    socket.emit('action:leave_room', {}); State.roomCode = null; goLobby();
+  }
+};
+['login-username','login-password'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-login').click(); })
+);
+['reg-nickname','reg-username','reg-password','reg-password-confirm'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-register').click(); })
+);
+
+/* ═══════════════════════════════════════════════════════
+   소켓 이벤트
+═══════════════════════════════════════════════════════ */
+socket.on('connect', () => console.log('소켓 연결:', socket.id));
+socket.on('state:room_created', data => { State.roomCode = data.code; goWaiting(data.code); });
+socket.on('state:room_joined',  data => { State.roomCode = data.code; });
+socket.on('state:room_update',  data => {
+  const prev = State.players.length;
+  State.players = data.players || [];
+  const me  = State.players.find(p => p.sid === socket.id);
+  const opp = State.players.find(p => p.sid !== socket.id);
+  if (me) State.myTeam = me.team;
+
+  // 내 슬롯
+  if (me) {
+    document.getElementById('slot-me-name').textContent = me.username;
+    const meSt = document.getElementById('slot-me-status');
+    if (me.ready) { meSt.className = 'slot-status ready'; meSt.textContent = '준비 완료 ✓'; }
+    else          { meSt.className = 'slot-status waiting'; meSt.textContent = '대기 중'; }
+  }
+
+  // 상대방 슬롯
+  const oppSlot   = document.getElementById('slot-opp');
+  const oppStatus = document.getElementById('slot-opp-status');
+  if (opp) {
+    oppSlot.querySelector('.slot-name').textContent   = opp.username;
+    oppSlot.querySelector('.slot-name').style.color   = '#ffffff';
+    oppSlot.querySelector('.slot-avatar').style.opacity = '1';
+    if (opp.ready) { oppStatus.className = 'slot-status ready'; oppStatus.textContent = '준비 완료 ✓'; }
+    else           { oppStatus.className = 'slot-status waiting'; oppStatus.textContent = '대기 중'; }
+    // 새로 입장한 경우 토스트
+    if (prev < 2) toast('상대방이 입장했습니다!', '#4ade80');
+  } else {
+    oppSlot.querySelector('.slot-name').textContent   = '상대방';
+    oppSlot.querySelector('.slot-name').style.color   = 'rgba(255,255,255,0.3)';
+    oppSlot.querySelector('.slot-avatar').style.opacity = '0.3';
+    oppStatus.className = 'slot-status empty';
+    oppStatus.innerHTML = '<span class="dot-anim"><span></span><span></span><span></span></span>';
+  }
+});
+socket.on('state:player_ready', data => toast(`${data.sid === socket.id ? '나' : '상대'} 준비 완료`));
+socket.on('state:game_start', data => {
+  State.players = data.players || [];
+  const me = State.players.find(p => p.sid === socket.id);
+  if (me) State.myTeam = me.team;
+  toast('⚾ 플레이볼!', '#f0883e');
+  goGame();
+});
+
+/* 수비팀 난이도 선택 요청 */
+socket.on('state:select_difficulty', data => {
+  resetDiffButtons();
+  updateDiffPanel();
+  if (data.defense_sid === socket.id) {
+    showDefenseView();
+  } else {
+    hide('defense-panel');
+  }
+});
+
+socket.on('state:new_word', data => {
+  State.currentWord = data;
+  const isOffense = (State.myTeam === data.offense_team) ||
+                    (data.offense_sid && data.offense_sid === socket.id);
+  if (isOffense) {
+    // 공격팀 — 퍼즐 표시, 수비 패널 숨김
+    buildPuzzle(data);
+  } else {
+    // 수비팀 — 수비 패널로, 상대방 타이머 시각화
+    showDefenseView();
+    showDefenseTimerPassive();
+    startTimer(null); // 공격팀 타이머 동기화 (수비팀은 expire 없음)
+  }
+  // HUD / Phaser 동기화
+  if (data.game_state) { updateScoreboard(data.game_state); updateHUD(data.game_state); }
+});
+
+socket.on('state:answer_result', data => {
+  stopTimer();
+  hide('defense-panel');
+  updateScoreboard(data);
+  updateHUD(data);
+  const isMe = data.submitted_by === socket.id;
+
+  if (data.event === 'hit') {
+    hide('puzzle-panel');
+    const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
+    const lbl = labels[data.hit_type] || '히트!';
+    toast(`${isMe ? '나' : '상대'}: ${lbl}  +${data.runs}점`, '#f0883e');
+    showFeedText(`${lbl}  ${data.correct_answer}`, '#f0883e');
+    if (data.hit_type === 'homerun') showHomerunCeremony();
+    else if (data.runs > 0) showScoreCeremony(data.runs, State.myTeam);
+  } else {
+    const outMsg = data.out ? `  → 아웃 (${data.outs}/3)` : '';
+    toast(`${isMe ? '나' : '상대'}: 스트라이크${outMsg}`, '#f85149');
+    showFeedText(`✗ 정답: ${data.correct_answer}`, '#f85149');
+
+    // 공격팀 본인만 슬롯에 정답 2초 표시
+    if (isMe && data.word) {
+      _showCorrectAnswer(data.word);
+    } else {
+      hide('puzzle-panel');
+    }
+  }
+
+  // 다음 투구 — 수비팀에게 난이도 선택 (오답은 2초 뒤, 안타는 1.8초 뒤)
+  const delay = (data.event !== 'hit' && isMe) ? 2000 : 1800;
+  if (!data.game_over) {
+    setTimeout(() => {
+      hide('puzzle-panel');
+      if (data.defense_sid === socket.id) { resetDiffButtons(); updateDiffPanel(); showDefenseView(); }
+    }, delay);
+  } else {
+    setTimeout(() => hide('puzzle-panel'), delay);
+  }
+});
+
+function _showCorrectAnswer(word) {
+  const letters = word.toUpperCase().split('');
+  const slots = document.getElementById('answer-slots').children;
+  // 슬롯 수가 단어 길이와 다를 경우 대비
+  for (let i = 0; i < slots.length; i++) {
+    slots[i].textContent = letters[i] ?? '';
+    slots[i].className = 'answer-slot correct';
+    slots[i].onclick = null; // 클릭 불가
+  }
+  show('puzzle-panel');
+}
+
+socket.on('state:game_update', data => { updateScoreboard(data); updateHUD(data); });
+socket.on('state:game_over',   data => {
+  stopTimer();
+  updateHUD({ ...data, outs:3, strikes:0, balls:0, bases:[false,false,false] });
+  setTimeout(() => goResult(data), 1400);
+});
+socket.on('state:error', data => {
+  toast(data.message, '#f85149');
+  document.getElementById('lobby-error').textContent = data.message;
+});
+
+/* ── 로비 타이틀 더블클릭 → 게임 미리보기 ─────────── */
+document.querySelector('.login-title')?.addEventListener('dblclick', () => {
+  State.username = State.username || 'Preview';
+  testGame();
+});
+
+/* ═══════════════════════════════════════════════════════
+   개발용 게임 화면 미리보기
+═══════════════════════════════════════════════════════ */
+window.testGame = function(opts = {}) {
+  // 기본 상태 세팅
+  State.username     = State.username || 'TestPlayer';
+  State.myTeam       = opts.team ?? 'top';
+  State.selectedInning = opts.innings ?? 2;
+  State.hintLang     = opts.hintLang  ?? 'ko';
+  State.answerLang   = opts.answerLang ?? 'en';
+  State.players = [
+    { sid: socket.id, username: State.username, team: 'top' },
+    { sid: 'bot-001', username: 'CPU',          team: 'bottom' },
+  ];
+
+  const mockGS = { inning:1, half:'top', outs:1, strikes:1, balls:2,
+                   score:{ top:3, bottom:1 }, bases:[true,false,true] };
+  goGame();
+  updateHUD(mockGS);
+  updateScoreboard(mockGS);
+
+  if (State.myTeam === 'top') {
+    // 공격팀 뷰
+    const sample = opts.word ?? { word:'abandon', meaning:'버리다 / 포기하다', difficulty:2 };
+    setTimeout(() => buildPuzzle(sample), 300);
+  } else {
+    // 수비팀 뷰
+    setTimeout(() => {
+      updateDiffPanel();
+      showDefenseView();
+      showDefenseTimerPassive();
+      startTimer(null);
+    }, 300);
+  }
+  console.log('%c[testGame] team=' + State.myTeam, 'color:#4ade80');
+  console.log('  testGame()               → 공격팀 뷰');
+  console.log('  testGame({team:"bottom"})→ 수비팀 뷰');
+};
+
+window.testColdGame = function() {
+  goGame();
+  updateHUD({ inning:3, half:'bottom', outs:2, strikes:0, balls:0,
+              score:{ top:12, bottom:1 }, bases:[false,false,false] });
+  show('cold-game-banner');
+  console.log('%c[testColdGame] 콜드게임 배너 표시', 'color:#f87171');
+};
+
+/* ═══════════════════════════════════════════════════════
+   초기 진입
+═══════════════════════════════════════════════════════ */
+(async () => {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    const data = await res.json();
+    if (data.user) { State.username = data.user.username; goLobby(); return; }
+  } catch (_) {}
+  goLogin();
+})();
+</script>
+</body>
+</html>
