@@ -2230,9 +2230,11 @@ function buildPuzzle(wordData) {
   document.getElementById('puzzle-hint-text').textContent = hint;
 
   // 힌트 배치: 타석 모드는 매 문제 랜덤(0=없음, 1=첫글자, 2=양끝), 나머지는 난이도 고정
-  const hintMode = (State.gameMode === 'cpu')
+  const _isCpu = State.gameMode === 'cpu';
+  const hintMode = _isCpu
     ? Math.floor(Math.random() * 3)
     : (wordData.difficulty === 1 ? 2 : wordData.difficulty === 2 ? 1 : 0);
+  console.log(`[buildPuzzle] gameMode=${State.gameMode} | word=${word} | diff=${wordData.difficulty} | hintMode=${hintMode} (${['없음','첫글자','양끝'][hintMode]})`);
   if (hintMode >= 1) _prefillSlot(0);
   if (hintMode >= 2) _prefillSlot(word.length - 1);
 
@@ -2404,6 +2406,7 @@ function _localHitType() {
   const lck  = State.lockedSlots    ?? new Set();
   const firstKnown = pfx.has(0) || lck.has(0);
   const lastKnown  = pfx.has(wLen - 1) || lck.has(wLen - 1);
+  console.log(`[_localHitType] pfx=[${[...pfx]}] lck=[${[...lck]}] firstKnown=${firstKnown} lastKnown=${lastKnown} timerSec=${_timerSec}`);
   // 양끝 모두 알고 있으면 1루타, 첫글자만 알거나 아이템 사용 시 2루타
   if (firstKnown && lastKnown) return 'single';
   if (firstKnown || lck.size > 0) return 'double';
