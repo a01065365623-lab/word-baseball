@@ -1034,15 +1034,15 @@
         <div class="lobby-section-label">게임 모드</div>
         <div style="display:flex;gap:8px;">
           <button class="mode-btn game-mode-btn active" data-mode="cpu" style="flex:1;">
-            <div>🤖 솔로 vs CPU</div>
+            <div>🤖 타석</div>
             <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">공격만 진행<br>10점↑ 시 200코인</div>
           </button>
           <button class="mode-btn game-mode-btn" data-mode="pvp" style="flex:1;">
-            <div>👥 1vs1 PvP</div>
+            <div>👥 맞대결</div>
             <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">실시간 대전<br>승리 시 코인 획득</div>
           </button>
           <button class="mode-btn game-mode-btn" data-mode="practice" style="flex:1;">
-            <div>📚 연습 모드</div>
+            <div>📚 불펜</div>
             <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">점수 없음<br>단어 학습용</div>
           </button>
         </div>
@@ -1204,24 +1204,24 @@
 
     <!-- ══ 연습 모드 HUD ════════════════════════════════ -->
     <div id="practice-hud" class="hidden">
-      <span id="practice-diff-badge" class="ph-badge easy">초급</span>
+      <span id="practice-diff-badge" class="ph-badge easy">A리그</span>
       <span id="practice-stats">정답 <span id="ps-correct">0</span>  오답 <span id="ps-wrong">0</span></span>
       <button id="btn-practice-exit">← 나가기</button>
     </div>
 
     <!-- ══ 연습 모드 난이도 선택 ════════════════════════ -->
     <div class="panel hidden" id="practice-select-panel">
-      <h3>연습 모드</h3>
+      <h3>불펜</h3>
       <p>난이도를 선택하세요</p>
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <button class="practice-diff-btn easy" data-diff="1">
-          <span>초급</span><span class="pdb-sub">4~5글자</span>
+          <span>A리그</span><span class="pdb-sub">4~5글자</span>
         </button>
         <button class="practice-diff-btn medium" data-diff="2">
-          <span>중급</span><span class="pdb-sub">5~7글자</span>
+          <span>AA리그</span><span class="pdb-sub">5~7글자</span>
         </button>
         <button class="practice-diff-btn hard" data-diff="3">
-          <span>고급</span><span class="pdb-sub">6~9글자</span>
+          <span>메이저리그</span><span class="pdb-sub">6~9글자</span>
         </button>
       </div>
       <button class="btn-secondary" id="btn-practice-back" style="width:100%;padding:9px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
@@ -1262,18 +1262,18 @@
       <div class="def-section-label">🎯 투구 난이도 선택</div>
       <div class="def-buttons">
         <button class="diff-btn diff-easy" id="diff-easy">
-          <div class="diff-btn-title">초급</div>
+          <div class="diff-btn-title">A리그</div>
           <div class="diff-btn-sub">상대방 1루타</div>
           <div class="diff-btn-count" id="diff-easy-count">남은 —개</div>
         </button>
         <button class="diff-btn diff-medium" id="diff-medium">
-          <div class="diff-btn-title">중급</div>
+          <div class="diff-btn-title">AA리그</div>
           <div class="diff-btn-sub">상대방 2루타</div>
           <div class="diff-btn-count" id="diff-medium-count">남은 —개</div>
         </button>
         <button class="diff-btn diff-hard" id="diff-hard">
-          <div class="diff-btn-title">고급</div>
-          <div class="diff-btn-sub">상대방 홈런</div>
+          <div class="diff-btn-title">메이저리그</div>
+          <div class="diff-btn-sub">상대방 3루타</div>
           <div class="diff-btn-count" id="diff-hard-count">남은 —개</div>
         </button>
       </div>
@@ -1776,7 +1776,7 @@ function goWaiting(code) {
   show('waiting-panel');
   _bgSwitch('lobby');
   // 이닝/모드 뱃지 업데이트
-  const inningLabel = `${State.selectedInning ?? 2}이닝 · 1vs1 PvP`;
+  const inningLabel = `${State.selectedInning ?? 2}이닝 · 맞대결`;
   document.getElementById('waiting-inning-badge').textContent = inningLabel;
   // 내 슬롯 초기화
   document.getElementById('slot-me-name').textContent = State.username || '나';
@@ -2138,9 +2138,13 @@ function buildPuzzle(wordData) {
 
   document.getElementById('puzzle-hint-text').textContent = hint;
 
-  // 난이도별 기본 힌트: 첫 N글자 사전 배치
-  const preCount = { 1: 2, 2: 1, 3: 0 }[wordData.difficulty] ?? 0;
-  for (let i = 0; i < preCount; i++) _prefillSlot(i);
+  // 난이도별 기본 힌트 배치
+  if (wordData.difficulty === 1) {
+    _prefillSlot(0);                   // 첫글자
+    _prefillSlot(word.length - 1);    // 마지막글자
+  } else if (wordData.difficulty === 2) {
+    _prefillSlot(0);                   // 첫글자
+  }
 
   // 타일 렌더 (prefilled 타일은 타일 영역에서 제거)
   const tilesEl = document.getElementById('letter-tiles');
@@ -2309,9 +2313,10 @@ async function fetchLocalWord(difficulty) {
 }
 
 function _localHitType(difficulty) {
+  if (_timerSec >= 8) return 'homerun';   // 7초 안에 정답
   if (difficulty === 1) return 'single';
   if (difficulty === 2) return 'double';
-  return 'homerun';
+  return 'triple';
 }
 
 /* ── 로컬 정답 처리 ──────────────────────────────────── */
@@ -2372,8 +2377,8 @@ function _handleCpuAnswer(correct, timedOut, word) {
     else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
   } else {
     result = LocalGame.strike();
-    const outMsg = result.out ? `  → 아웃 (${LocalGame.outs}/3)` : '';
-    toast(`스트라이크${outMsg}`, '#f85149');
+    const outMsg = result.out ? ` (${LocalGame.outs}/3)` : '';
+    toast(`아웃${outMsg}`, '#f85149');
     if (!timedOut) {
       _showCorrectAnswer(word.word);
       setTimeout(() => { hide('puzzle-panel'); _afterCpuAnswer(); }, 2000);
@@ -2416,10 +2421,10 @@ function startPracticeGame(difficulty) {
   hideAll();
   show('practice-hud'); show('game-field'); show('item-bar');
   _bgSwitch('game');
-  const labels = { 1:'초급', 2:'중급', 3:'고급' };
+  const labels = { 1:'A리그', 2:'AA리그', 3:'메이저리그' };
   const cls    = { 1:'easy', 2:'medium', 3:'hard' };
   const badge  = document.getElementById('practice-diff-badge');
-  badge.textContent = labels[difficulty] || '초급';
+  badge.textContent = labels[difficulty] || 'A리그';
   badge.className   = `ph-badge ${cls[difficulty] || 'easy'}`;
   initItems();
   _updatePracticeStats();
@@ -2807,8 +2812,8 @@ socket.on('state:answer_result', data => {
     if (data.hit_type === 'homerun') showHomerunCeremony();
     else if (data.runs > 0) showScoreCeremony(data.runs, State.myTeam);
   } else {
-    const outMsg = data.out ? `  → 아웃 (${data.outs}/3)` : '';
-    toast(`${isMe ? '나' : '상대'}: 스트라이크${outMsg}`, '#f85149');
+    const outMsg = data.out ? ` (${data.outs}/3)` : '';
+    toast(`${isMe ? '나' : '상대'}: 아웃${outMsg}`, '#f85149');
     showFeedText(`✗ 정답: ${data.correct_answer}`, '#f85149');
 
     // 공격팀 본인만 슬롯에 정답 2초 표시

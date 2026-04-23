@@ -293,12 +293,12 @@ def on_answer(data):
     is_correct = (user_answer == word_str)
 
     if is_correct:
-        hit_map  = {1: 'homerun', 2: 'double', 3: 'single'}
-        hit_type = hit_map.get(difficulty, 'single')
-        # difficulty 3: 남은 시간 7초 이상이면 홈런으로 상향
-        if difficulty == 3:
-            time_left = int(data.get('time_left') or 0)
-            hit_type  = 'homerun' if time_left >= 7 else 'triple'
+        time_left = int(data.get('time_left') or 0)
+        if time_left >= 8:          # 7초 안에 정답 → 홈런
+            hit_type = 'homerun'
+        else:
+            hit_map = {1: 'single', 2: 'double', 3: 'triple'}
+            hit_type = hit_map.get(difficulty, 'single')
         result = game.hit(hit_type)
     else:
         result = game.strike()
