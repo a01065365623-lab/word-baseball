@@ -856,6 +856,12 @@
     .practice-diff-btn.medium { background:rgba(251,191,36,0.22); color:#fbbf24; border:1px solid rgba(251,191,36,0.55); }
     .practice-diff-btn.hard   { background:rgba(239,68,68,0.22);  color:#f87171;  border:1px solid rgba(239,68,68,0.55); }
     .practice-diff-btn:hover  { filter:brightness(1.25); transform:translateY(-2px); }
+    .practice-diff-btn.easy.active   { background:rgba(34,197,94,0.45);  border:2px solid rgba(34,197,94,0.95);
+                                       box-shadow:0 0 18px rgba(34,197,94,0.55); transform:translateY(-2px); }
+    .practice-diff-btn.medium.active { background:rgba(251,191,36,0.45); border:2px solid rgba(251,191,36,0.95);
+                                       box-shadow:0 0 18px rgba(251,191,36,0.55); transform:translateY(-2px); }
+    .practice-diff-btn.hard.active   { background:rgba(239,68,68,0.45);  border:2px solid rgba(239,68,68,0.95);
+                                       box-shadow:0 0 18px rgba(239,68,68,0.55); transform:translateY(-2px); }
     .practice-diff-btn .pdb-sub { font-size:11px; opacity:0.65; font-weight:400; }
 
     /* ══ 콜드게임 배너 ═════════════════════════════════════ */
@@ -1215,9 +1221,9 @@
     <!-- ══ 연습 모드 난이도 선택 ════════════════════════ -->
     <div class="panel hidden" id="practice-select-panel">
       <h3>불펜</h3>
-      <p>난이도를 선택하세요</p>
+      <p>리그와 이닝을 선택하세요</p>
       <div style="display:flex;gap:10px;margin-bottom:16px;">
-        <button class="practice-diff-btn easy" data-diff="1">
+        <button class="practice-diff-btn easy active" data-diff="1">
           <span>A리그</span><span class="pdb-sub">4~5글자</span>
         </button>
         <button class="practice-diff-btn medium" data-diff="2">
@@ -1235,14 +1241,26 @@
           <button class="mode-btn practice-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
         </div>
       </div>
+      <button class="btn btn-login-main" id="btn-practice-start" style="font-size:15px;padding:13px;margin-bottom:8px;">⚾ 게임 시작</button>
       <button class="btn-secondary" id="btn-practice-back" style="width:100%;padding:9px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
     </div>
 
-    <!-- ══ 타석 모드 이닝 선택 ════════════════════════════ -->
+    <!-- ══ 타석 모드 리그/이닝 선택 ══════════════════════ -->
     <div class="panel hidden" id="cpu-select-panel">
       <h3>타석</h3>
-      <p>이닝 수를 선택하세요</p>
-      <div style="margin-bottom:20px;">
+      <p>리그와 이닝을 선택하세요</p>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button class="practice-diff-btn easy active" data-diff="1">
+          <span>A리그</span><span class="pdb-sub">4~5글자</span>
+        </button>
+        <button class="practice-diff-btn medium" data-diff="2">
+          <span>AA리그</span><span class="pdb-sub">5~7글자</span>
+        </button>
+        <button class="practice-diff-btn hard" data-diff="3">
+          <span>메이저리그</span><span class="pdb-sub">6~9글자</span>
+        </button>
+      </div>
+      <div style="margin-bottom:16px;">
         <div class="lobby-section-label">이닝 수</div>
         <div style="display:flex;gap:8px;">
           <button class="mode-btn cpu-inning-btn active" data-inning="2" style="flex:1;">2이닝</button>
@@ -2399,14 +2417,9 @@ function startCpuGame() {
   _cpuNextTurn();
 }
 
-function _cpuPickDifficulty() {
-  const r = Math.random();
-  return r < 0.50 ? 1 : r < 0.85 ? 2 : 3;
-}
-
 async function _cpuNextTurn() {
   if (LocalGame.gameOver) { _endCpuGame(); return; }
-  const diff = _cpuPickDifficulty();
+  const diff = State.selectedLeague ?? 1;
   const word = await fetchLocalWord(diff);
   if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
   State.currentWord = word;
@@ -2536,11 +2549,17 @@ document.querySelectorAll('.practice-inning-btn').forEach(btn => {
   };
 });
 
-/* ── 연습 모드 버튼 이벤트 ─────────────────────────────── */
+/* ── 리그 선택 (타석/불펜 공용) ──────────────────────── */
 document.querySelectorAll('.practice-diff-btn').forEach(btn => {
-  btn.onclick = () => startPracticeGame(parseInt(btn.dataset.diff));
+  btn.onclick = () => {
+    const panel = btn.closest('.panel');
+    panel?.querySelectorAll('.practice-diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.selectedLeague = parseInt(btn.dataset.diff);
+  };
 });
-document.getElementById('btn-practice-back').onclick = () => { hideAll(); show('lobby-panel'); };
+document.getElementById('btn-practice-start').onclick = () => startPracticeGame(State.selectedLeague ?? 1);
+document.getElementById('btn-practice-back').onclick  = () => { hideAll(); show('lobby-panel'); };
 document.getElementById('btn-practice-exit').onclick = () => {
   State.gameMode = null;
   hideAll(); show('lobby-panel');
@@ -2649,6 +2668,7 @@ document.getElementById('btn-to-login').onclick = () => { hide('register-panel')
 
 /* ── 이닝 선택 ─────────────────────────────────────────── */
 State.selectedInning = 2;
+State.selectedLeague = 1;
 State.selectedMode   = 'cpu';
 State.coins          = 0;
 State.hintLang       = 'ko';
