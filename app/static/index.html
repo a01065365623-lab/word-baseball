@@ -2376,14 +2376,10 @@ const LocalGame = {
   },
 
   strike() {
-    this.strikes++;
-    let out = false;
-    if (this.strikes >= 3) {
-      this.strikes = 0; this.outs++;
-      out = true;
-      if (this.outs >= 3) this._endInning();
-    }
-    return { event:'strike', out };
+    this.outs++;
+    this.strikes = 0; this.balls = 0;
+    if (this.outs >= 3) this._endInning();
+    return { event:'out', out: true };
   },
 
   _endInning() {
@@ -2403,11 +2399,17 @@ async function fetchLocalWord(difficulty) {
   } catch(e) { return null; }
 }
 
-function _localHitType(difficulty) {
-  if (_timerSec >= 8) return 'homerun';   // 7초 안에 정답
-  if (difficulty === 1) return 'single';
-  if (difficulty === 2) return 'double';
-  return 'triple';
+function _localHitType() {
+  const wLen = State.puzzleWord?.length ?? 1;
+  const pfx  = State.prefilledSlots ?? new Set();
+  const lck  = State.lockedSlots    ?? new Set();
+  const firstKnown = pfx.has(0) || lck.has(0);
+  const lastKnown  = pfx.has(wLen - 1) || lck.has(wLen - 1);
+  // 양끝 모두 알고 있으면 1루타, 첫글자만 알거나 아이템 사용 시 2루타
+  if (firstKnown && lastKnown) return 'single';
+  if (firstKnown || lck.size > 0) return 'double';
+  // 힌트 없이 맞춘 경우: 7초 이상 남으면 홈런, 미만이면 3루타
+  return _timerSec >= 7 ? 'homerun' : 'triple';
 }
 
 /* ── 로컬 정답 처리 ──────────────────────────────────── */
@@ -2455,7 +2457,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
   hide('puzzle-panel');
   let result;
   if (correct) {
-    const hitType = _localHitType(word.difficulty);
+    const hitType = _localHitType();
     result = LocalGame.hit(hitType);
     const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
     toast(`${labels[hitType]}  +${result.runs}점`, '#f0883e');
