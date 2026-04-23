@@ -2203,13 +2203,20 @@ function stopTimer() {
 /* ── 기본 힌트 슬롯 사전 배치 ─────────────────────────── */
 function _prefillSlot(si) {
   const letter = State.puzzleWord[si];
-  if (!letter || State.answerIndices[si] !== null) return;
+  if (!letter || State.answerIndices[si] !== null) {
+    console.warn(`[_prefillSlot] si=${si} 건너뜀 — letter=${letter} answerIndices[si]=${State.answerIndices[si]}`);
+    return;
+  }
   const ti = State.puzzleTiles.findIndex(t => !t.used && t.letter === letter);
-  if (ti === -1) return;
+  if (ti === -1) {
+    console.warn(`[_prefillSlot] si=${si} 타일 없음 — letter=${letter}`);
+    return;
+  }
   State.puzzleTiles[ti].used      = true;
   State.puzzleTiles[ti].prefilled = true;
   State.answerIndices[si]         = ti;
   State.prefilledSlots.add(si);
+  console.log(`[_prefillSlot] si=${si} letter=${letter} OK → prefilledSlots=[${[...State.prefilledSlots]}]`);
 }
 
 /* ── 퍼즐 빌드 ─────────────────────────────────────────── */
@@ -2459,7 +2466,9 @@ function _handleCpuAnswer(correct, timedOut, word) {
   hide('puzzle-panel');
   let result;
   if (correct) {
+    console.log(`[hitType] pfx=[${[...State.prefilledSlots]}] lck=[${[...State.lockedSlots]}] timerSec=${_timerSec} word=${word.word}`);
     const hitType = _localHitType();
+    console.log(`[hitType] → ${hitType}`);
     result = LocalGame.hit(hitType);
     const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
     toast(`${labels[hitType]}  +${result.runs}점`, '#f0883e');
