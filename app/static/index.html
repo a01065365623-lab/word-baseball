@@ -1213,7 +1213,7 @@
 
     <!-- ══ 연습 모드 HUD ════════════════════════════════ -->
     <div id="practice-hud" class="hidden">
-      <span id="practice-diff-badge" class="ph-badge easy">A리그</span>
+      <span id="practice-diff-badge" class="ph-badge easy">AA리그</span>
       <span id="practice-stats">정답 <span id="ps-correct">0</span>  오답 <span id="ps-wrong">0</span></span>
       <button id="btn-practice-exit">← 나가기</button>
     </div>
@@ -1224,10 +1224,10 @@
       <p>리그와 이닝을 선택하세요</p>
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <button class="practice-diff-btn easy active" data-diff="1">
-          <span>A리그</span><span class="pdb-sub">4~5글자</span>
+          <span>AA리그</span><span class="pdb-sub">4~5글자</span>
         </button>
         <button class="practice-diff-btn medium" data-diff="2">
-          <span>AA리그</span><span class="pdb-sub">5~7글자</span>
+          <span>마이너리그</span><span class="pdb-sub">5~7글자</span>
         </button>
         <button class="practice-diff-btn hard" data-diff="3">
           <span>메이저리그</span><span class="pdb-sub">6~9글자</span>
@@ -1251,10 +1251,10 @@
       <p>리그와 이닝을 선택하세요</p>
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <button class="practice-diff-btn easy active" data-diff="1">
-          <span>A리그</span><span class="pdb-sub">4~5글자</span>
+          <span>AA리그</span><span class="pdb-sub">4~5글자</span>
         </button>
         <button class="practice-diff-btn medium" data-diff="2">
-          <span>AA리그</span><span class="pdb-sub">5~7글자</span>
+          <span>마이너리그</span><span class="pdb-sub">5~7글자</span>
         </button>
         <button class="practice-diff-btn hard" data-diff="3">
           <span>메이저리그</span><span class="pdb-sub">6~9글자</span>
@@ -1307,12 +1307,12 @@
       <div class="def-section-label">🎯 투구 난이도 선택</div>
       <div class="def-buttons">
         <button class="diff-btn diff-easy" id="diff-easy">
-          <div class="diff-btn-title">A리그</div>
+          <div class="diff-btn-title">AA리그</div>
           <div class="diff-btn-sub">상대방 1루타</div>
           <div class="diff-btn-count" id="diff-easy-count">남은 —개</div>
         </button>
         <button class="diff-btn diff-medium" id="diff-medium">
-          <div class="diff-btn-title">AA리그</div>
+          <div class="diff-btn-title">마이너리그</div>
           <div class="diff-btn-sub">상대방 2루타</div>
           <div class="diff-btn-count" id="diff-medium-count">남은 —개</div>
         </button>
@@ -1515,11 +1515,22 @@ class BGScene extends Phaser.Scene {
     );
     this.baseObjects = this.baseHighlightGfx;
 
-    /* ── 5. 주자 이모티콘 (🏃) ──────────────────────── */
+    /* ── 5. 주자 헬멧 텍스처 생성 (남색 야구 헬멧) ─────── */
+    const htex = this.make.graphics({ x:0, y:0, add:false });
+    htex.fillStyle(0x1a3a8c, 1);          // 남색 돔
+    htex.fillCircle(16, 14, 12);
+    htex.fillStyle(0x0f2258, 1);          // 진남 챙
+    htex.fillRect(12, 24, 15, 5);         // 우측으로 돌출된 챙
+    htex.fillStyle(0xffffff, 0.18);       // 하이라이트
+    htex.fillEllipse(11, 8, 8, 4);
+    htex.generateTexture('helmet', 32, 32);
+    htex.destroy();
+
+    /* ── 5. 주자 아이콘 ────────────────────────────── */
     this._runnerPos  = [B1, B2, B3, HOME];
     this.runnerTexts = [B1, B2, B3, HOME].map(b =>
-      this.add.text(b.x, b.y - 34, '🏃', { fontSize: '28px' })
-        .setOrigin(0.5, 1).setDepth(10).setVisible(false)
+      this.add.image(b.x, b.y - 28, 'helmet')
+        .setDisplaySize(26, 26).setOrigin(0.5, 1).setDepth(10).setVisible(false)
     );
 
     /* ── 5b. 선수 이미지 — 게임 모드 전용 ───────── */
@@ -1634,8 +1645,8 @@ class BGScene extends Phaser.Scene {
     if (!this._basePos) { onComplete?.(); return; }
     const from = this._basePos[fromIdx];
     const to   = this._basePos[toIdx < 3 ? toIdx : 3];
-    const mover = this.add.text(from.x, from.y - 34, '🏃', { fontSize: '28px' })
-      .setOrigin(0.5, 1).setDepth(11);
+    const mover = this.add.image(from.x, from.y - 28, 'helmet')
+      .setDisplaySize(26, 26).setOrigin(0.5, 1).setDepth(11);
     this.tweens.add({
       targets: mover,
       x: to.x, y: to.y - 34,
@@ -1750,6 +1761,20 @@ function hideAll() {
    'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel',
    'game-field','defense-panel','puzzle-panel',
    'item-bar','cold-game-banner','result-panel'].forEach(hide);
+}
+
+const TTS_LANG = {
+  en:'en-US', ko:'ko-KR', ja:'ja-JP', zh:'zh-CN', de:'de-DE',
+  fr:'fr-FR', hi:'hi-IN', es:'es-ES', pt:'pt-BR', it:'it-IT',
+  ru:'ru-RU', tr:'tr-TR', vi:'vi-VN', ar:'ar-SA'
+};
+function speakWord(text, langCode) {
+  if (!window.speechSynthesis || !text) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = langCode || 'en-US';
+  utt.rate = 0.85;
+  window.speechSynthesis.speak(utt);
 }
 
 let toastTimer = null;
@@ -2438,17 +2463,36 @@ function _handleCpuAnswer(correct, timedOut, word) {
     if (hitType === 'homerun') showHomerunCeremony();
     else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
   } else {
-    result = LocalGame.strike();
-    const outMsg = result.out ? ` (${LocalGame.outs}/3)` : '';
+    const prevInning    = LocalGame.inning;
+    result              = LocalGame.strike();
+    const isThirdOut    = result.out && LocalGame.outs === 0;
+    const inningChanged = isThirdOut && !LocalGame.gameOver;
+    const displayOuts   = isThirdOut ? 3 : LocalGame.outs;
+    const outMsg        = result.out ? ` (${displayOuts}/3)` : '';
     toast(`아웃${outMsg}`, '#f85149');
+    updateHUD(LocalGame.toHUD());
+    updateScoreboard(LocalGame.toHUD());
     if (!timedOut) {
       _showCorrectAnswer(word.word);
-      setTimeout(() => { hide('puzzle-panel'); _afterCpuAnswer(); }, 2000);
-      updateHUD(LocalGame.toHUD());
-      updateScoreboard(LocalGame.toHUD());
+      setTimeout(() => {
+        hide('puzzle-panel');
+        if (inningChanged) {
+          toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
+          setTimeout(() => _afterCpuAnswer(), 1500);
+        } else {
+          _afterCpuAnswer();
+        }
+      }, 2000);
       return;
     }
     showFeedText(`✗ 정답: ${word.word}`, '#f85149');
+    if (inningChanged) {
+      setTimeout(() => {
+        toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
+        setTimeout(() => _afterCpuAnswer(), 1500);
+      }, 1800);
+      return;
+    }
   }
   updateHUD(LocalGame.toHUD());
   updateScoreboard(LocalGame.toHUD());
@@ -2489,10 +2533,10 @@ function startPracticeGame(difficulty) {
   show('practice-hud'); show('game-field'); show('item-bar');
   _bgSwitch('game');
   setBgPlayerRole('pitcher');
-  const labels = { 1:'A리그', 2:'AA리그', 3:'메이저리그' };
+  const labels = { 1:'AA리그', 2:'마이너리그', 3:'메이저리그' };
   const cls    = { 1:'easy', 2:'medium', 3:'hard' };
   const badge  = document.getElementById('practice-diff-badge');
-  badge.textContent = labels[difficulty] || 'A리그';
+  badge.textContent = labels[difficulty] || 'AA리그';
   badge.className   = `ph-badge ${cls[difficulty] || 'easy'}`;
   initItems();
   _updatePracticeStats();
@@ -2510,6 +2554,7 @@ async function _practiceNextWord() {
   if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
   State.currentWord = word;
   buildPuzzle(word);
+  speakWord(word.word, TTS_LANG[State.answerLang] ?? 'en-US');
 }
 
 function _handlePracticeAnswer(correct, word) {
@@ -2909,6 +2954,13 @@ socket.on('state:answer_result', data => {
     } else {
       hide('puzzle-panel');
     }
+  }
+
+  // 공수교대 알림
+  if (data.inning_change && !data.game_over) {
+    const gs = data.game_state || data;
+    const halfStr = gs.half === 'top' ? '초 ▲' : '말 ▼';
+    setTimeout(() => toast(`⚔️ 공수교대!  ${gs.inning}이닝 ${halfStr}`, '#c084fc'), 1200);
   }
 
   // 다음 투구 — 수비팀에게 난이도 선택 (오답은 2초 뒤, 안타는 1.8초 뒤)
