@@ -687,11 +687,13 @@
     #puzzle-panel {
       position:absolute; top:170px; left:0; width:800px;
       min-height:462px;
-      background:rgba(3,7,18,0.97);
-      border-top:1px solid rgba(255,255,255,0.09);
+      background:rgba(4,10,28,0.88);
+      border-top:1px solid rgba(255,255,255,0.13);
       padding:18px 32px 16px;
       display:flex; flex-direction:column; gap:14px;
     }
+    /* Phaser 캔버스 밝기 향상 */
+    #game-container > canvas { filter: brightness(1.25); }
     /* HINT 영역 */
     #puzzle-hint {
       text-align:center;
@@ -715,9 +717,9 @@
       margin-bottom:5px;
     }
     .letter-tile {
-      width:68px; height:68px; background:rgba(255,255,255,0.15);
-      border:2px solid rgba(255,255,255,0.28); border-radius:20px;
-      color:#ffffff; font-size:36px; font-weight:400; letter-spacing:0.04em;
+      width:68px; height:68px; background:rgba(255,255,255,0.18);
+      border:2px solid rgba(255,255,255,0.40); border-radius:20px;
+      color:#ffffff; font-size:42px; font-weight:700; letter-spacing:0.04em;
       font-family:'Fredoka One', 'Nunito', sans-serif; cursor:pointer;
       transition:all 0.15s; display:flex; align-items:center; justify-content:center;
       text-shadow:0 2px 4px rgba(0,0,0,0.9); user-select:none; flex-shrink:0;
@@ -729,34 +731,37 @@
     }
     .letter-tile.used { opacity:0.18; cursor:default; transform:none; }
     .answer-slot {
-      width:68px; height:68px; background:rgba(255,255,255,0.04);
-      border:2px dashed rgba(255,255,255,0.22); border-radius:20px;
-      color:#f0f6ff; font-size:36px; font-weight:400; letter-spacing:0.04em;
+      width:68px; height:68px; background:rgba(220,238,255,0.92);
+      border:2.5px dashed rgba(59,130,246,0.85); border-radius:20px;
+      color:#1e3a5f; font-size:42px; font-weight:700; letter-spacing:0.04em;
       font-family:'Fredoka One', 'Nunito', sans-serif; display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:all 0.15s;
-      text-shadow:0 2px 4px rgba(0,0,0,0.9); user-select:none; flex-shrink:0;
+      text-shadow:none; user-select:none; flex-shrink:0;
     }
     .answer-slot.filled {
-      background:rgba(99,179,237,0.18); border-style:solid;
-      border-color:rgba(99,179,237,0.6);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);
+      background:rgba(22,163,74,0.92); border-style:solid; border-color:#15803d;
+      color:#ffffff; text-shadow:0 1px 3px rgba(0,0,0,0.35);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.22), 0 0 8px rgba(22,163,74,0.4);
     }
-    .answer-slot.filled:hover { background:rgba(239,68,68,0.18); border-color:rgba(239,68,68,0.6); }
+    .answer-slot.filled:hover { background:rgba(220,38,38,0.88); border-color:#b91c1c; }
     .answer-slot.correct {
-      background:rgba(34,197,94,0.22); border-style:solid;
-      border-color:rgba(34,197,94,0.85); color:#4ade80;
-      box-shadow:0 0 10px rgba(34,197,94,0.30); pointer-events:none;
+      background:rgba(34,197,94,0.30); border-style:solid;
+      border-color:rgba(34,197,94,0.90); color:#ffffff;
+      text-shadow:0 1px 3px rgba(0,0,0,0.5);
+      box-shadow:0 0 12px rgba(34,197,94,0.40); pointer-events:none;
     }
     .answer-slot.prefilled {
-      border-style:solid; border-color:rgba(255,255,255,0.30);
-      background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.45); cursor:default;
+      background:rgba(253,224,71,0.96); border-style:solid; border-color:#ca8a04;
+      color:#1a1a1a; text-shadow:none; cursor:default;
+      box-shadow:0 0 6px rgba(202,138,4,0.30);
     }
-    .answer-slot.prefilled:hover { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.30); }
+    .answer-slot.prefilled:hover { background:rgba(253,224,71,0.96); border-color:#ca8a04; }
     .answer-slot.revealed {
-      border-style:solid; border-color:rgba(255,229,102,0.70);
-      background:rgba(255,229,102,0.10); color:#FFE566; cursor:default;
+      background:rgba(251,146,60,0.92); border-style:solid; border-color:#ea580c;
+      color:#ffffff; text-shadow:0 1px 3px rgba(0,0,0,0.4); cursor:default;
+      box-shadow:0 0 8px rgba(234,88,12,0.35);
     }
-    .answer-slot.revealed:hover { background:rgba(255,229,102,0.10); border-color:rgba(255,229,102,0.70); }
+    .answer-slot.revealed:hover { background:rgba(251,146,60,0.92); border-color:#ea580c; }
     /* ══ 아이템 바 (게임 하단 고정) ══ */
     #item-bar {
       position:absolute; bottom:0; left:0; width:800px;
@@ -1517,11 +1522,11 @@ class BGScene extends Phaser.Scene {
 
     /* ── 5. 주자 헬멧 텍스처 생성 (남색 야구 헬멧) ─────── */
     const htex = this.make.graphics({ x:0, y:0, add:false });
-    htex.fillStyle(0x1a3a8c, 1);          // 남색 돔
+    htex.fillStyle(0xee2222, 1);          // 빨간 돔
     htex.fillCircle(16, 14, 12);
-    htex.fillStyle(0x0f2258, 1);          // 진남 챙
+    htex.fillStyle(0xaa0000, 1);          // 진빨 챙
     htex.fillRect(12, 24, 15, 5);         // 우측으로 돌출된 챙
-    htex.fillStyle(0xffffff, 0.18);       // 하이라이트
+    htex.fillStyle(0xffffff, 0.28);       // 하이라이트
     htex.fillEllipse(11, 8, 8, 4);
     htex.generateTexture('helmet', 32, 32);
     htex.destroy();
