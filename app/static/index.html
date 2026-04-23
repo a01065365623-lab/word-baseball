@@ -311,7 +311,9 @@
     .mode-btn:hover { background: rgba(255,255,255,0.20); color: #fff; }
     /* 이닝 버튼 활성 — 라벤더 */
     .inning-btn.active,
-    .lobby-inning-btn.active {
+    .lobby-inning-btn.active,
+    .cpu-inning-btn.active,
+    .practice-inning-btn.active {
       background: rgba(123,108,246,0.35);
       border-color: rgba(163,148,255,0.80);
       color: #ffffff;
@@ -826,6 +828,17 @@
     #practice-select-panel {
       top:90px; left:210px; width:380px;
     }
+    #cpu-select-panel {
+      top:90px; left:210px; width:380px;
+    }
+    #cpu-select-panel h3 {
+      font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
+      color:#FFE566; text-shadow:0 0 14px rgba(255,220,80,0.55);
+      margin-bottom:6px; text-align:center;
+    }
+    #cpu-select-panel p {
+      font-size:13px; color:rgba(255,255,255,0.50); text-align:center; margin-bottom:18px;
+    }
     #practice-select-panel h3 {
       font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
       color:#FFE566; text-shadow:0 0 14px rgba(255,220,80,0.55);
@@ -1048,16 +1061,6 @@
         </div>
       </div>
 
-      <!-- 이닝 선택 (CPU 모드 전용) -->
-      <div id="lobby-inning-section" style="margin-bottom:20px;">
-        <div class="lobby-section-label">이닝 수</div>
-        <div style="display:flex;gap:8px;">
-          <button class="mode-btn lobby-inning-btn active" data-inning="2" style="flex:1;">2이닝</button>
-          <button class="mode-btn lobby-inning-btn" data-inning="4" style="flex:1;">4이닝</button>
-          <button class="mode-btn lobby-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
-        </div>
-      </div>
-
       <!-- 게임 시작 -->
       <button class="btn btn-login-main" id="btn-start-game" style="font-size:15px;padding:13px;">⚾ 게임 시작</button>
 
@@ -1224,7 +1227,31 @@
           <span>메이저리그</span><span class="pdb-sub">6~9글자</span>
         </button>
       </div>
+      <div style="margin-bottom:16px;">
+        <div class="lobby-section-label">이닝 수</div>
+        <div style="display:flex;gap:8px;">
+          <button class="mode-btn practice-inning-btn active" data-inning="2" style="flex:1;">2이닝</button>
+          <button class="mode-btn practice-inning-btn" data-inning="4" style="flex:1;">4이닝</button>
+          <button class="mode-btn practice-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
+        </div>
+      </div>
       <button class="btn-secondary" id="btn-practice-back" style="width:100%;padding:9px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
+    </div>
+
+    <!-- ══ 타석 모드 이닝 선택 ════════════════════════════ -->
+    <div class="panel hidden" id="cpu-select-panel">
+      <h3>타석</h3>
+      <p>이닝 수를 선택하세요</p>
+      <div style="margin-bottom:20px;">
+        <div class="lobby-section-label">이닝 수</div>
+        <div style="display:flex;gap:8px;">
+          <button class="mode-btn cpu-inning-btn active" data-inning="2" style="flex:1;">2이닝</button>
+          <button class="mode-btn cpu-inning-btn" data-inning="4" style="flex:1;">4이닝</button>
+          <button class="mode-btn cpu-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
+        </div>
+      </div>
+      <button class="btn btn-login-main" id="btn-cpu-start" style="font-size:15px;padding:13px;margin-bottom:8px;">⚾ 게임 시작</button>
+      <button class="btn-secondary" id="btn-cpu-back" style="width:100%;padding:9px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
     </div>
 
     <!-- ══ 게임 HUD ══════════════════════════════════════ -->
@@ -1682,7 +1709,7 @@ function show(id)  { document.getElementById(id).classList.remove('hidden'); }
 function hide(id)  { document.getElementById(id).classList.add('hidden'); }
 function hideAll() {
   ['login-panel','register-panel','lobby-panel','settings-modal','waiting-panel',
-   'answer-bar','game-hud','practice-hud','practice-select-panel',
+   'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel',
    'game-field','defense-panel','puzzle-panel',
    'item-bar','cold-game-banner','result-panel'].forEach(hide);
 }
@@ -1775,9 +1802,6 @@ function goWaiting(code) {
   hideAll();
   show('waiting-panel');
   _bgSwitch('lobby');
-  // 이닝/모드 뱃지 업데이트
-  const inningLabel = `${State.selectedInning ?? 2}이닝 · 맞대결`;
-  document.getElementById('waiting-inning-badge').textContent = inningLabel;
   // 내 슬롯 초기화
   document.getElementById('slot-me-name').textContent = State.username || '나';
   document.getElementById('slot-me-status').className  = 'slot-status waiting';
@@ -2410,6 +2434,11 @@ function _endCpuGame() {
 }
 
 /* ── 연습 모드 ──────────────────────────────────────────── */
+function startCpuSelect() {
+  hideAll();
+  show('cpu-select-panel');
+}
+
 function startPracticeSelect() {
   hideAll();
   show('practice-select-panel');
@@ -2460,6 +2489,26 @@ function _handlePracticeAnswer(correct, word) {
   }
   _updatePracticeStats();
 }
+
+/* ── 타석 이닝 선택 ────────────────────────────────────── */
+document.querySelectorAll('.cpu-inning-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.cpu-inning-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.selectedInning = parseInt(btn.dataset.inning);
+  };
+});
+document.getElementById('btn-cpu-start').onclick = () => startCpuGame();
+document.getElementById('btn-cpu-back').onclick  = () => { hideAll(); show('lobby-panel'); };
+
+/* ── 불펜 이닝 선택 ────────────────────────────────────── */
+document.querySelectorAll('.practice-inning-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.practice-inning-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    State.selectedInning = parseInt(btn.dataset.inning);
+  };
+});
 
 /* ── 연습 모드 버튼 이벤트 ─────────────────────────────── */
 document.querySelectorAll('.practice-diff-btn').forEach(btn => {
@@ -2586,21 +2635,11 @@ document.querySelectorAll('.inning-btn').forEach(btn => {
   };
 });
 
-document.querySelectorAll('.lobby-inning-btn').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('.lobby-inning-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    State.selectedInning = parseInt(btn.dataset.inning);
-  };
-});
-
 document.querySelectorAll('.game-mode-btn').forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     State.selectedMode = btn.dataset.mode;
-    document.getElementById('lobby-inning-section').style.display =
-      btn.dataset.mode === 'cpu' ? 'block' : 'none';
   };
 });
 
@@ -2621,7 +2660,7 @@ document.getElementById('btn-start-game').onclick = () => {
   } else if (State.selectedMode === 'practice') {
     startPracticeSelect();
   } else {
-    startCpuGame();
+    startCpuSelect();
   }
 };
 
@@ -2697,7 +2736,7 @@ function resetDiffButtons() {
 });
 document.getElementById('btn-play-again').onclick = () => {
   if (State.gameMode === 'cpu') {
-    startCpuGame();
+    startCpuSelect();
   } else if (State.gameMode === 'practice') {
     startPracticeSelect();
   } else {
