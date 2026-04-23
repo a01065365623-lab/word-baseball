@@ -1410,6 +1410,8 @@ class BGScene extends Phaser.Scene {
     this.load.image('stadium',     '/images/stadium_bg.png');
     this.load.image('light_tower', '/images/light_tower.png');
     this.load.image('base',        '/images/base.png');
+    this.load.image('batter',      '/images/batter.png');
+    this.load.image('pitcher',     '/images/pitcher.png');
 
     this.load.on('filecomplete', (key) =>
       console.log('[Phaser] 로드 완료:', key)
@@ -1502,6 +1504,14 @@ class BGScene extends Phaser.Scene {
         .setOrigin(0.5, 1).setDepth(10).setVisible(false)
     );
 
+    /* ── 5b. 선수 이미지 — 게임 모드 전용 ───────── */
+    // batter: 1389×1132 → 홈플레이트(x:400,y:494) 우측에 배치, bottom-anchor
+    this.batterImg = this.add.image(425, 520, 'batter')
+      .setDisplaySize(130, 106).setOrigin(0.5, 1).setDepth(6).setVisible(false);
+    // pitcher: 1401×1123 → 마운드(x:400,y:408) 위에 배치, bottom-anchor
+    this.pitcherImg = this.add.image(400, 418, 'pitcher')
+      .setDisplaySize(128, 103).setOrigin(0.5, 1).setDepth(6).setVisible(false);
+
     /* ── 6. HUD 스코어보드 — 게임 모드 전용 ──────── */
     this.hudGfx = this.add.graphics().setVisible(false);
     this.hudGfx.fillStyle(0x040810, 0.90);
@@ -1552,7 +1562,11 @@ class BGScene extends Phaser.Scene {
     this.fieldGraphics.setVisible(isGame);
     this.baseImages.forEach(b => b.setVisible(isGame));
     this.baseHighlightGfx.forEach(g => g.setVisible(isGame));
-    if (!isGame) this.runnerTexts?.forEach(r => r.setVisible(false));
+    if (!isGame) {
+      this.runnerTexts?.forEach(r => r.setVisible(false));
+      this.batterImg?.setVisible(false);
+      this.pitcherImg?.setVisible(false);
+    }
 
     const hv = isGame;
     this.hudGfx.setVisible(hv);
@@ -1589,6 +1603,12 @@ class BGScene extends Phaser.Scene {
         this.tweens.add({ targets: rt, scale: 1, duration: 220, ease: 'Back.easeOut' });
       }
     }
+  }
+
+  /* 선수 이미지 역할 전환: 'batter' | 'pitcher' | null */
+  setPlayerRole(role) {
+    this.batterImg?.setVisible(role === 'batter');
+    this.pitcherImg?.setVisible(role === 'pitcher');
   }
 
   /* 주자 이동 애니메이션 */
@@ -1764,6 +1784,10 @@ function showFeedText(msg, color = '#3fb950') {
   bg.feedText?.setStyle({ fill: color });
   bg.feedText?.setText(msg);
   setTimeout(() => bg.feedText?.setText(''), 2200);
+}
+
+function setBgPlayerRole(role) {
+  game.registry.get('bgScene')?.setPlayerRole?.(role);
 }
 
 function showHomerunCeremony() {
@@ -2368,6 +2392,7 @@ function startCpuGame() {
   hideAll();
   show('game-hud'); show('game-field'); show('item-bar');
   _bgSwitch('game');
+  setBgPlayerRole('batter');
   initWordPool();
   updateHUD(LocalGame.toHUD());
   updateScoreboard(LocalGame.toHUD());
@@ -2450,6 +2475,7 @@ function startPracticeGame(difficulty) {
   hideAll();
   show('practice-hud'); show('game-field'); show('item-bar');
   _bgSwitch('game');
+  setBgPlayerRole('pitcher');
   const labels = { 1:'A리그', 2:'AA리그', 3:'메이저리그' };
   const cls    = { 1:'easy', 2:'medium', 3:'hard' };
   const badge  = document.getElementById('practice-diff-badge');
@@ -2522,6 +2548,7 @@ document.getElementById('btn-practice-exit').onclick = () => {
 
 function goResult(data) {
   stopTimer();
+  setBgPlayerRole(null);
   hideAll();
   show('result-panel');
   const topP    = State.players.find(p => p.team === 'top');
@@ -2822,6 +2849,7 @@ socket.on('state:new_word', data => {
   State.currentWord = data;
   const isOffense = (State.myTeam === data.offense_team) ||
                     (data.offense_sid && data.offense_sid === socket.id);
+  setBgPlayerRole(isOffense ? 'batter' : 'pitcher');
   if (isOffense) {
     // 공격팀 — 퍼즐 표시, 수비 패널 숨김
     buildPuzzle(data);
