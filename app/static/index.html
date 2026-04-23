@@ -25,6 +25,7 @@
       top: 0; left: 0;
       width: 800px; height: 600px;
       pointer-events: none;
+      z-index: 1;
     }
     .overlay * { pointer-events: auto; }
 
@@ -692,8 +693,6 @@
       padding:18px 32px 16px;
       display:flex; flex-direction:column; gap:14px;
     }
-    /* Phaser 캔버스 밝기 향상 */
-    #game-container > canvas { filter: brightness(1.25); }
     /* HINT 영역 */
     #puzzle-hint {
       text-align:center;
@@ -1461,6 +1460,10 @@ class BGScene extends Phaser.Scene {
     this.stadiumBg = this.add.image(W / 2, H / 2, 'stadium').setDisplaySize(W, H);
     this.lobbyBg   = this.add.image(W / 2, H / 2, 'light_tower')
       .setDisplaySize(W, H).setVisible(false);
+    // 배경 밝기 레이어 (흰 반투명 rect → CSS filter 없이 밝기 향상)
+    this.bgBright = this.add.graphics().setDepth(0.5);
+    this.bgBright.fillStyle(0xffffff, 0.14);
+    this.bgBright.fillRect(0, 0, W, H);
 
     /* ── 2. 조명탑 이미지 (좌·우) — 게임 모드 전용 ── */
     const TOWER_CFG = [
