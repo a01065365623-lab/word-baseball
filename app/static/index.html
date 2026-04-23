@@ -2229,13 +2229,12 @@ function buildPuzzle(wordData) {
 
   document.getElementById('puzzle-hint-text').textContent = hint;
 
-  // 난이도별 기본 힌트 배치
-  if (wordData.difficulty === 1) {
-    _prefillSlot(0);                   // 첫글자
-    _prefillSlot(word.length - 1);    // 마지막글자
-  } else if (wordData.difficulty === 2) {
-    _prefillSlot(0);                   // 첫글자
-  }
+  // 힌트 배치: 타석 모드는 매 문제 랜덤(0=없음, 1=첫글자, 2=양끝), 나머지는 난이도 고정
+  const hintMode = (State.gameMode === 'cpu')
+    ? Math.floor(Math.random() * 3)
+    : (wordData.difficulty === 1 ? 2 : wordData.difficulty === 2 ? 1 : 0);
+  if (hintMode >= 1) _prefillSlot(0);
+  if (hintMode >= 2) _prefillSlot(word.length - 1);
 
   // 타일 렌더 (prefilled 타일은 타일 영역에서 제거)
   const tilesEl = document.getElementById('letter-tiles');
