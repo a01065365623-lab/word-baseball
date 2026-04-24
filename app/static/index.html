@@ -781,23 +781,25 @@
     .answer-slot.revealed:hover { background:rgba(251,146,60,0.92); border-color:#ea580c; }
     /* ══ 아이템 바 (항상 하단에 고정, flex-shrink:0) ══ */
     #item-bar {
-      flex-shrink:0; /* flex 아이템으로서 자연 높이 유지 */
+      flex-shrink:0; height:70px; /* 고정 높이 */
       pointer-events:auto;
       background:rgba(3,7,18,0.97); border-top:1px solid rgba(255,255,255,0.08);
-      padding:8px 32px 10px; display:flex; flex-direction:column; gap:6px;
-      box-sizing:border-box;
+      padding:0 32px; display:flex; flex-direction:column; justify-content:center; gap:4px;
+      box-sizing:border-box; overflow:hidden;
     }
     #item-count {
       font-size:10px; font-weight:700; letter-spacing:2px;
       color:rgba(255,229,102,0.55); text-transform:uppercase; text-align:right;
+      line-height:1; flex-shrink:0;
     }
-    #item-buttons { display:flex; gap:5px; }
+    #item-buttons { display:flex; gap:5px; flex-shrink:0; }
     .item-btn {
-      flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
-      padding:7px 3px; background:rgba(255,255,255,0.06);
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      height:40px; min-width:0; /* 고정 높이 */
+      background:rgba(255,255,255,0.06);
       border:1px solid rgba(255,255,255,0.13); border-radius:10px;
       color:#e6edf3; font-family:'Inter',sans-serif; cursor:pointer;
-      transition:all 0.15s; line-height:1;
+      transition:all 0.15s; line-height:1; overflow:hidden;
     }
     .item-btn:hover:not(:disabled) {
       background:rgba(255,229,102,0.12); border-color:rgba(255,229,102,0.45);
