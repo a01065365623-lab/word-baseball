@@ -694,11 +694,12 @@
     /* ══ 단어 퍼즐 패널 (공격팀 전용) ════════════════════ */
     #puzzle-panel {
       position:absolute; top:170px; left:0; width:800px;
-      min-height:462px;
+      bottom:0;
       background:rgba(4,10,28,0.88);
       border-top:1px solid rgba(255,255,255,0.13);
-      padding:18px 32px 16px;
-      display:flex; flex-direction:column; gap:14px;
+      padding:14px 32px 96px; /* 하단 96px = 아이템 바 높이 확보 */
+      display:flex; flex-direction:column; gap:10px;
+      overflow:hidden;
     }
     /* HINT 영역 */
     #puzzle-hint {
@@ -723,9 +724,9 @@
       margin-bottom:5px;
     }
     .letter-tile {
-      width:68px; height:68px; background:rgba(255,255,255,0.18);
-      border:2px solid rgba(255,255,255,0.40); border-radius:20px;
-      color:#ffffff; font-size:42px; font-weight:700; letter-spacing:0.04em;
+      width:54px; height:54px; background:rgba(255,255,255,0.18);
+      border:2px solid rgba(255,255,255,0.40); border-radius:16px;
+      color:#ffffff; font-size:34px; font-weight:700; letter-spacing:0.04em;
       font-family:'Fredoka One', 'Nunito', sans-serif; cursor:pointer;
       transition:all 0.15s; display:flex; align-items:center; justify-content:center;
       text-shadow:0 2px 4px rgba(0,0,0,0.9); user-select:none; flex-shrink:0;
@@ -737,9 +738,9 @@
     }
     .letter-tile.used { opacity:0.18; cursor:default; transform:none; }
     .answer-slot {
-      width:68px; height:68px; background:rgba(220,238,255,0.92);
-      border:2.5px dashed rgba(59,130,246,0.85); border-radius:20px;
-      color:#1e3a5f; font-size:42px; font-weight:700; letter-spacing:0.04em;
+      width:54px; height:54px; background:rgba(220,238,255,0.92);
+      border:2px dashed rgba(59,130,246,0.85); border-radius:16px;
+      color:#1e3a5f; font-size:34px; font-weight:700; letter-spacing:0.04em;
       font-family:'Fredoka One', 'Nunito', sans-serif; display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:all 0.15s;
       text-shadow:none; user-select:none; flex-shrink:0;
@@ -1320,14 +1321,14 @@
       <!-- 1. 철자 타일 -->
       <div>
         <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">철자 타일</div>
-        <div id="letter-tiles" style="display:flex;gap:6px;flex-wrap:wrap;min-height:68px;"></div>
+        <div id="letter-tiles" style="display:flex;gap:6px;flex-wrap:wrap;min-height:54px;"></div>
       </div>
       <!-- 2. 힌트 -->
       <div id="puzzle-hint"><span class="hint-label">HINT</span><span id="puzzle-hint-text">—</span></div>
       <!-- 3. 정답 입력 슬롯 -->
       <div>
         <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">정답 입력</div>
-        <div id="answer-slots" style="display:flex;gap:6px;flex-wrap:wrap;min-height:68px;"></div>
+        <div id="answer-slots" style="display:flex;gap:6px;flex-wrap:wrap;min-height:54px;"></div>
       </div>
       <!-- 4. 타이머 + 버튼 -->
       <div style="display:flex;align-items:center;justify-content:space-between;">
