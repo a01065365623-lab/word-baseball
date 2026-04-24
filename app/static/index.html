@@ -979,46 +979,48 @@
                 title="설정">⚙️</button>
       </div>
 
-      <!-- 정답 언어 선택 (철자 입력 가능한 6개) -->
-      <div style="margin-bottom:12px;">
-        <div class="lobby-section-label">✏️ 정답 언어 <span style="font-size:9px;opacity:0.55;font-weight:400;letter-spacing:0;">(철자로 입력)</span></div>
-        <div style="position:relative;">
-          <select id="lobby-answer-language"
-                  style="width:100%;padding:10px 14px;
-                         background:rgba(255,255,255,0.18);
-                         border:1px solid rgba(180,230,245,0.45);
-                         border-radius:10px;color:#ffffff;
-                         font-size:13px;font-family:'Inter',sans-serif;
-                         outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
-                         transition:border-color 0.15s;">
-            <option value="en">🇺🇸 영어</option>
-            <option value="de">🇩🇪 독일어</option>
-            <option value="fr">🇫🇷 프랑스어</option>
-            <option value="es">🇪🇸 스페인어</option>
-            <option value="pt">🇧🇷 포르투갈어</option>
-            <option value="it">🇮🇹 이탈리아어</option>
-          </select>
-          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
-                       pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
+      <!-- 힌트/정답 언어 선택 (가로 2열) -->
+      <div style="display:flex;gap:8px;margin-bottom:18px;">
+        <!-- 힌트 언어 -->
+        <div style="flex:1;min-width:0;">
+          <div class="lobby-section-label" style="margin-bottom:6px;">🌐 힌트</div>
+          <div style="position:relative;">
+            <select id="lobby-language"
+                    style="width:100%;padding:8px 24px 8px 10px;
+                           background:rgba(255,255,255,0.18);
+                           border:1px solid rgba(180,230,245,0.45);
+                           border-radius:10px;color:#ffffff;
+                           font-size:11px;font-family:'Inter',sans-serif;
+                           outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
+                           transition:border-color 0.15s;">
+              <!-- 옵션은 syncLangState()에서 동적으로 생성 -->
+            </select>
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
+                         pointer-events:none;color:rgba(255,255,255,0.4);font-size:10px;">▼</span>
+          </div>
         </div>
-      </div>
-
-      <!-- 힌트 언어 선택 (14개, 정답 언어 자동 제외) -->
-      <div style="margin-bottom:18px;">
-        <div class="lobby-section-label">🌐 힌트 언어</div>
-        <div style="position:relative;">
-          <select id="lobby-language"
-                  style="width:100%;padding:10px 14px;
-                         background:rgba(255,255,255,0.18);
-                         border:1px solid rgba(180,230,245,0.45);
-                         border-radius:10px;color:#ffffff;
-                         font-size:13px;font-family:'Inter',sans-serif;
-                         outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
-                         transition:border-color 0.15s;">
-            <!-- 옵션은 syncLangState()에서 동적으로 생성 -->
-          </select>
-          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
-                       pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
+        <!-- 정답 언어 -->
+        <div style="flex:1;min-width:0;">
+          <div class="lobby-section-label" style="margin-bottom:6px;">✏️ 정답</div>
+          <div style="position:relative;">
+            <select id="lobby-answer-language"
+                    style="width:100%;padding:8px 24px 8px 10px;
+                           background:rgba(255,255,255,0.18);
+                           border:1px solid rgba(180,230,245,0.45);
+                           border-radius:10px;color:#ffffff;
+                           font-size:11px;font-family:'Inter',sans-serif;
+                           outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
+                           transition:border-color 0.15s;">
+              <option value="en">🇺🇸 영어</option>
+              <option value="de">🇩🇪 독일어</option>
+              <option value="fr">🇫🇷 프랑스어</option>
+              <option value="es">🇪🇸 스페인어</option>
+              <option value="pt">🇧🇷 포르투갈</option>
+              <option value="it">🇮🇹 이탈리아어</option>
+            </select>
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
+                         pointer-events:none;color:rgba(255,255,255,0.4);font-size:10px;">▼</span>
+          </div>
         </div>
       </div>
 
@@ -2736,12 +2738,12 @@ const ALL_HINT_LANGS = [
   { value:'ko', label:'🇰🇷 한국어' },
   { value:'en', label:'🇺🇸 영어' },
   { value:'ja', label:'🇯🇵 일본어' },
-  { value:'zh', label:'🇨🇳 중국어 (简体)' },
+  { value:'zh', label:'🇨🇳 중국어' },
   { value:'de', label:'🇩🇪 독일어' },
   { value:'fr', label:'🇫🇷 프랑스어' },
   { value:'es', label:'🇪🇸 스페인어' },
   { value:'hi', label:'🇮🇳 힌디어' },
-  { value:'pt', label:'🇧🇷 포르투갈어' },
+  { value:'pt', label:'🇧🇷 포르투갈' },
   { value:'it', label:'🇮🇹 이탈리아어' },
   { value:'ru', label:'🇷🇺 러시아어' },
   { value:'tr', label:'🇹🇷 터키어' },
