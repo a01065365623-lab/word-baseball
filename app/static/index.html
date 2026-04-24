@@ -707,7 +707,7 @@
       pointer-events:auto;
       background:rgba(4,10,28,0.88);
       border-top:1px solid rgba(255,255,255,0.13);
-      padding:14px 32px 14px;
+      padding:14px 32px 84px; /* 하단 84px = item-bar(70px) + 여백(14px) */
       display:flex; flex-direction:column; gap:10px;
       overflow:hidden;
     }
@@ -781,7 +781,8 @@
     .answer-slot.revealed:hover { background:rgba(251,146,60,0.92); border-color:#ea580c; }
     /* ══ 아이템 바 (항상 하단에 고정, flex-shrink:0) ══ */
     #item-bar {
-      flex-shrink:0; height:70px; /* 고정 높이 */
+      position:fixed; bottom:0; left:0; right:0; height:70px;
+      z-index:9999;
       pointer-events:auto;
       background:rgba(3,7,18,0.97); border-top:1px solid rgba(255,255,255,0.08);
       padding:0 32px; display:flex; flex-direction:column; justify-content:center; gap:4px;
