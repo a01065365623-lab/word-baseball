@@ -13,10 +13,11 @@
       background: #0f1830;
       display: flex;
       justify-content: center;
-      align-items: center;
-      height: 100vh;
+      align-items: flex-start;
+      min-height: 100vh;
       font-family: 'Nunito', 'Inter', 'Segoe UI', sans-serif;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
     #game-container { position: relative; }
 
@@ -277,6 +278,7 @@
     /* 로비 */
     #lobby-panel {
       top: 55px; left: 210px; width: 380px;
+      max-width: calc(100% - 20px);
       position: absolute;
       background: rgba(10,20,50,0.92);
       border: 1px solid rgba(180,230,245,0.55);
@@ -285,6 +287,13 @@
       color: #f0faff;
       box-shadow: 0 24px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.20);
       animation: fadeUp 0.4s ease;
+      overflow: hidden;
+    }
+    #lobby-language, #lobby-answer-language {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .lobby-section-label {
       font-size: 10px;
@@ -3106,6 +3115,23 @@ window.testColdGame = function() {
   } catch (_) {}
   goLogin();
 })();
+
+/* ── 뷰포트 반응형 스케일 ─────────────────────────────────── */
+(function fitGame() {
+  const el    = document.getElementById('game-container');
+  const scale = Math.min(window.innerWidth / 800, window.innerHeight / 600, 1);
+  el.style.transformOrigin = 'top center';
+  el.style.transform       = `scale(${scale})`;
+  // 스케일 축소 시 body 높이를 줄여 중앙 정렬 유지
+  document.body.style.height = `${Math.max(600 * scale, window.innerHeight)}px`;
+})();
+window.addEventListener('resize', function fitGame() {
+  const el    = document.getElementById('game-container');
+  const scale = Math.min(window.innerWidth / 800, window.innerHeight / 600, 1);
+  el.style.transformOrigin = 'top center';
+  el.style.transform       = `scale(${scale})`;
+  document.body.style.height = `${Math.max(600 * scale, window.innerHeight)}px`;
+});
 </script>
 </body>
 </html>
