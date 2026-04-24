@@ -805,9 +805,11 @@
       background:rgba(255,229,102,0.12); border-color:rgba(255,229,102,0.45);
       transform:translateY(-2px);
     }
-    .item-btn .item-icon  { font-size:17px; }
+    .item-btn              { font-size:12px; } /* 상속 차단 — 고정 기준값 */
+    .item-btn .item-icon  { font-size:17px; line-height:1; flex-shrink:0; }
     .item-btn .item-label { font-size:9px; font-weight:700; letter-spacing:0.3px;
-                            white-space:nowrap; color:rgba(255,255,255,0.60); }
+                            white-space:nowrap; color:rgba(255,255,255,0.60);
+                            line-height:1; flex-shrink:0; }
     .item-btn:disabled { opacity:0.28; cursor:not-allowed; transform:none; pointer-events:none; }
     /* 방해 버튼 — 수비 중 활성 (보라색 강조) */
     #item-sabotage.defense-active {
