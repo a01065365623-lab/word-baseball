@@ -380,8 +380,8 @@
       cursor: pointer;
     }
     .settings-select option { background: #1a3a50; }
-    #lobby-language option { background: #1a3a50; }
-    #lobby-language:focus  { border-color: rgba(135,206,235,0.85); }
+    #lobby-language option, #lobby-answer-language option { background: #1a3a50; }
+    #lobby-language:focus, #lobby-answer-language:focus { border-color: rgba(135,206,235,0.85); }
 
     /* 대기실 */
     #waiting-panel {
@@ -2714,7 +2714,6 @@ State.selectedMode   = 'cpu';
 State.coins          = 0;
 State.hintLang       = 'ko';
 State.answerLang     = 'en';
-syncLangState(); // 힌트 옵션 초기 빌드 (정답=영어 제외)
 
 document.querySelectorAll('.inning-btn').forEach(btn => {
   btn.onclick = () => {
@@ -2782,6 +2781,7 @@ document.getElementById('lobby-answer-language').addEventListener('change', sync
 document.getElementById('lobby-language').addEventListener('change', () => {
   State.hintLang = document.getElementById('lobby-language').value;
 });
+syncLangState(); // 힌트 옵션 초기 빌드 (ALL_HINT_LANGS 정의 이후에 호출)
 
 document.getElementById('btn-start-game').onclick = () => {
   syncLangState();
