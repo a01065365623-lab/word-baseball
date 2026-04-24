@@ -36,16 +36,23 @@ def close_connection(exception):
         db.close()
 
 
-def _db_word(difficulty: int, hint_lang: str = 'ko') -> dict | None:
+def _db_word(difficulty: int, hint_lang: str = 'ko', answer_lang: str = 'en') -> dict | None:
     """소켓 핸들러용 단어 조회 — 독립 커넥션 사용."""
     if hint_lang not in VALID_LANGS:
         hint_lang = 'ko'
+    if answer_lang not in VALID_LANGS:
+        answer_lang = 'en'
+    # hint_lang == answer_lang 이면 hint 를 영어로 fallback
+    effective_hint = hint_lang if hint_lang != answer_lang else 'en'
+    if effective_hint == answer_lang:
+        effective_hint = 'ko'
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     try:
         row = conn.execute(
-            f'SELECT en, {hint_lang}, level FROM vocabulary'
-            ' WHERE level = ? ORDER BY RANDOM() LIMIT 1',
+            f'SELECT {answer_lang}, {effective_hint}, level FROM vocabulary'
+            f' WHERE level = ? AND {answer_lang} IS NOT NULL AND {answer_lang} != ""'
+            ' ORDER BY RANDOM() LIMIT 1',
             (difficulty,)
         ).fetchone()
     except sqlite3.OperationalError:
@@ -120,11 +127,14 @@ def api_words_random():
     difficulty = request.args.get('difficulty', 1, type=int)
     if difficulty not in (1, 2, 3):
         difficulty = 1
-    a_lang = request.args.get('answer_lang', 'ko').strip().lower()
-    if a_lang not in VALID_LANGS:
-        a_lang = 'ko'
+    hint_lang   = request.args.get('question_lang', 'ko').strip().lower()
+    answer_lang = request.args.get('answer_lang', 'en').strip().lower()
+    if hint_lang not in VALID_LANGS:
+        hint_lang = 'ko'
+    if answer_lang not in VALID_LANGS:
+        answer_lang = 'en'
 
-    word = _db_word(difficulty, a_lang)
+    word = _db_word(difficulty, hint_lang, answer_lang)
     if not word:
         return jsonify({'error': 'no word found'}), 404
     return jsonify(word)
@@ -165,9 +175,9 @@ def _emit_select_difficulty(code: str):
     }, to=code)
 
 
-def _emit_new_word(code: str, difficulty: int, hint_lang: str = 'ko'):
+def _emit_new_word(code: str, difficulty: int, hint_lang: str = 'ko', answer_lang: str = 'en'):
     """words.db에서 단어 조회 후 state:new_word 브로드캐스트."""
-    word = _db_word(difficulty, hint_lang)
+    word = _db_word(difficulty, hint_lang, answer_lang)
     if not word:
         emit('state:error', {'message': '단어 데이터를 불러올 수 없습니다'}, to=code)
         return
@@ -243,11 +253,18 @@ def on_leave_room(data):
 
 @socketio.on('action:ready')
 def on_ready(data):
-    data      = data or {}
-    hint_lang = data.get('hintLang', 'ko')
-    code      = room_manager.find_room_by_sid(request.sid)
+    data        = data or {}
+    hint_lang   = data.get('hintLang', 'ko')
+    answer_lang = data.get('answerLang', 'en')
+    code        = room_manager.find_room_by_sid(request.sid)
     if not code:
         return
+
+    # 룸에 언어 설정 저장 (양쪽 중 마지막이 덮어씀 — 동일 설정 가정)
+    room = room_manager.get_room(code)
+    if room is not None:
+        room['hint_lang']   = hint_lang
+        room['answer_lang'] = answer_lang
 
     both_ready = room_manager.set_ready(code, request.sid)
     emit('state:player_ready', {'sid': request.sid}, to=code)
@@ -269,8 +286,10 @@ def on_select_difficulty(data):
     code = room_manager.find_room_by_sid(request.sid)
     if not code or not room_manager.get_game(code):
         return
-    hint_lang = data.get('hintLang', 'ko')
-    _emit_new_word(code, difficulty, hint_lang)
+    room        = room_manager.get_room(code) or {}
+    hint_lang   = room.get('hint_lang',   data.get('hintLang',   'ko'))
+    answer_lang = room.get('answer_lang', data.get('answerLang', 'en'))
+    _emit_new_word(code, difficulty, hint_lang, answer_lang)
 
 
 @socketio.on('action:answer')
@@ -327,9 +346,12 @@ def on_use_item(data):
     item_type = data.get('type')
 
     if item_type == 'swap':
-        current = room_manager.get_current_word(code)
-        diff    = current.get('difficulty', 1) if current else 1
-        _emit_new_word(code, diff)
+        current     = room_manager.get_current_word(code)
+        diff        = current.get('difficulty', 1) if current else 1
+        room        = room_manager.get_room(code) or {}
+        hint_lang   = room.get('hint_lang', 'ko')
+        answer_lang = room.get('answer_lang', 'en')
+        _emit_new_word(code, diff, hint_lang, answer_lang)
 
     elif item_type == 'sabotage':
         emit('state:item_used', {

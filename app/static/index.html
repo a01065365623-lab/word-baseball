@@ -380,10 +380,8 @@
       cursor: pointer;
     }
     .settings-select option { background: #1a3a50; }
-    #lobby-language option,
-    #lobby-answer-language option { background: #1a3a50; }
-    #lobby-language:focus,
-    #lobby-answer-language:focus  { border-color: rgba(135,206,235,0.85); }
+    #lobby-language option { background: #1a3a50; }
+    #lobby-language:focus  { border-color: rgba(135,206,235,0.85); }
 
     /* 대기실 */
     #waiting-panel {
@@ -981,41 +979,9 @@
                 title="설정">⚙️</button>
       </div>
 
-      <!-- 힌트 언어 선택 -->
+      <!-- 정답 언어 선택 (철자 입력 가능한 6개) -->
       <div style="margin-bottom:12px;">
-        <div class="lobby-section-label">🌐 힌트 언어</div>
-        <div style="position:relative;">
-          <select id="lobby-language"
-                  style="width:100%;padding:10px 14px;
-                         background:rgba(255,255,255,0.18);
-                         border:1px solid rgba(180,230,245,0.45);
-                         border-radius:10px;color:#ffffff;
-                         font-size:13px;font-family:'Inter',sans-serif;
-                         outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
-                         transition:border-color 0.15s;">
-            <option value="ko">🇰🇷 한국어</option>
-            <option value="en">🇺🇸 영어</option>
-            <option value="ja">🇯🇵 일본어</option>
-            <option value="zh">🇨🇳 중국어 (简体)</option>
-            <option value="es">🇪🇸 스페인어</option>
-            <option value="fr">🇫🇷 프랑스어</option>
-            <option value="de">🇩🇪 독일어</option>
-            <option value="it">🇮🇹 이탈리아어</option>
-            <option value="pt">🇧🇷 포르투갈어</option>
-            <option value="ru">🇷🇺 러시아어</option>
-            <option value="vi">🇻🇳 베트남어</option>
-            <option value="id">🇮🇩 인도네시아어</option>
-            <option value="th">🇹🇭 태국어</option>
-            <option value="ar">🇸🇦 아랍어</option>
-          </select>
-          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
-                       pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
-        </div>
-      </div>
-
-      <!-- 정답 언어 선택 -->
-      <div style="margin-bottom:6px;">
-        <div class="lobby-section-label">⌨️ 정답 언어</div>
+        <div class="lobby-section-label">✏️ 정답 언어 <span style="font-size:9px;opacity:0.55;font-weight:400;letter-spacing:0;">(철자로 입력)</span></div>
         <div style="position:relative;">
           <select id="lobby-answer-language"
                   style="width:100%;padding:10px 14px;
@@ -1026,30 +992,34 @@
                          outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
                          transition:border-color 0.15s;">
             <option value="en">🇺🇸 영어</option>
-            <option value="ko">🇰🇷 한국어</option>
-            <option value="ja">🇯🇵 일본어</option>
-            <option value="zh">🇨🇳 중국어 (简体)</option>
-            <option value="es">🇪🇸 스페인어</option>
-            <option value="fr">🇫🇷 프랑스어</option>
             <option value="de">🇩🇪 독일어</option>
-            <option value="it">🇮🇹 이탈리아어</option>
+            <option value="fr">🇫🇷 프랑스어</option>
+            <option value="es">🇪🇸 스페인어</option>
             <option value="pt">🇧🇷 포르투갈어</option>
-            <option value="ru">🇷🇺 러시아어</option>
-            <option value="vi">🇻🇳 베트남어</option>
-            <option value="id">🇮🇩 인도네시아어</option>
-            <option value="th">🇹🇭 태국어</option>
-            <option value="ar">🇸🇦 아랍어</option>
+            <option value="it">🇮🇹 이탈리아어</option>
           </select>
           <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
                        pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
         </div>
       </div>
-      <!-- 언어 중복 경고 -->
-      <div id="lang-same-warning"
-           style="display:none;margin-bottom:14px;padding:7px 12px;
-                  background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);
-                  border-radius:8px;color:#fbbf24;font-size:12px;font-weight:600;text-align:center;">
-        ⚠️ 힌트와 정답 언어가 같습니다
+
+      <!-- 힌트 언어 선택 (14개, 정답 언어 자동 제외) -->
+      <div style="margin-bottom:18px;">
+        <div class="lobby-section-label">🌐 힌트 언어</div>
+        <div style="position:relative;">
+          <select id="lobby-language"
+                  style="width:100%;padding:10px 14px;
+                         background:rgba(255,255,255,0.18);
+                         border:1px solid rgba(180,230,245,0.45);
+                         border-radius:10px;color:#ffffff;
+                         font-size:13px;font-family:'Inter',sans-serif;
+                         outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
+                         transition:border-color 0.15s;">
+            <!-- 옵션은 syncLangState()에서 동적으로 생성 -->
+          </select>
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                       pointer-events:none;color:rgba(255,255,255,0.4);font-size:11px;">▼</span>
+        </div>
       </div>
 
       <!-- 게임 모드 선택 -->
@@ -2409,7 +2379,12 @@ const LocalGame = {
 /* ── 공통 유틸 ─────────────────────────────────────────── */
 async function fetchLocalWord(difficulty) {
   try {
-    const res = await fetch(`/api/words/random?difficulty=${difficulty}`, { credentials:'include' });
+    const hl = State.hintLang   ?? 'ko';
+    const al = State.answerLang ?? 'en';
+    const res = await fetch(
+      `/api/words/random?difficulty=${difficulty}&question_lang=${hl}&answer_lang=${al}`,
+      { credentials:'include' }
+    );
     if (!res.ok) return null;
     return await res.json();
   } catch(e) { return null; }
@@ -2739,6 +2714,7 @@ State.selectedMode   = 'cpu';
 State.coins          = 0;
 State.hintLang       = 'ko';
 State.answerLang     = 'en';
+syncLangState(); // 힌트 옵션 초기 빌드 (정답=영어 제외)
 
 document.querySelectorAll('.inning-btn').forEach(btn => {
   btn.onclick = () => {
@@ -2757,14 +2733,55 @@ document.querySelectorAll('.game-mode-btn').forEach(btn => {
 });
 
 /* ── 게임 시작 ─────────────────────────────────────────── */
+const ALL_HINT_LANGS = [
+  { value:'ko', label:'🇰🇷 한국어' },
+  { value:'en', label:'🇺🇸 영어' },
+  { value:'ja', label:'🇯🇵 일본어' },
+  { value:'zh', label:'🇨🇳 중국어 (简体)' },
+  { value:'de', label:'🇩🇪 독일어' },
+  { value:'fr', label:'🇫🇷 프랑스어' },
+  { value:'es', label:'🇪🇸 스페인어' },
+  { value:'hi', label:'🇮🇳 힌디어' },
+  { value:'pt', label:'🇧🇷 포르투갈어' },
+  { value:'it', label:'🇮🇹 이탈리아어' },
+  { value:'ru', label:'🇷🇺 러시아어' },
+  { value:'tr', label:'🇹🇷 터키어' },
+  { value:'vi', label:'🇻🇳 베트남어' },
+  { value:'ar', label:'🇸🇦 아랍어' },
+];
+
 function syncLangState() {
-  State.hintLang   = document.getElementById('lobby-language').value;
-  State.answerLang = document.getElementById('lobby-answer-language').value;
-  const warn = document.getElementById('lang-same-warning');
-  warn.style.display = (State.hintLang === State.answerLang) ? 'block' : 'none';
+  const answerSel = document.getElementById('lobby-answer-language');
+  const hintSel   = document.getElementById('lobby-language');
+  const answerVal = answerSel.value;
+  const prevHint  = hintSel.value;
+
+  // 힌트 옵션 재구성 — 정답 언어 제외
+  hintSel.innerHTML = '';
+  ALL_HINT_LANGS
+    .filter(l => l.value !== answerVal)
+    .forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.value;
+      opt.textContent = l.label;
+      if (l.value === prevHint && l.value !== answerVal) opt.selected = true;
+      hintSel.appendChild(opt);
+    });
+
+  // 기존 선택이 제거된 경우 ko 기본값 (없으면 첫 번째)
+  if (!hintSel.value || hintSel.value === answerVal) {
+    const fallback = hintSel.querySelector('option[value="ko"]') || hintSel.querySelector('option');
+    if (fallback) hintSel.value = fallback.value;
+  }
+
+  State.answerLang = answerVal;
+  State.hintLang   = hintSel.value;
 }
-document.getElementById('lobby-language').addEventListener('change', syncLangState);
+
 document.getElementById('lobby-answer-language').addEventListener('change', syncLangState);
+document.getElementById('lobby-language').addEventListener('change', () => {
+  State.hintLang = document.getElementById('lobby-language').value;
+});
 
 document.getElementById('btn-start-game').onclick = () => {
   syncLangState();
@@ -2843,7 +2860,11 @@ function resetDiffButtons() {
       else             { ob.classList.add('dimmed'); }
     });
     const diffMap = { easy: 1, medium: 2, hard: 3 };
-    socket.emit('action:select_difficulty', { difficulty: diffMap[d] });
+    socket.emit('action:select_difficulty', {
+      difficulty: diffMap[d],
+      hintLang:   State.hintLang   ?? 'ko',
+      answerLang: State.answerLang ?? 'en',
+    });
     hide('difficulty-panel');
   };
 });
