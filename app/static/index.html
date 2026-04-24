@@ -27,6 +27,10 @@
       width: 800px; height: 600px;
       pointer-events: none;
       z-index: 1;
+      /* 전체 게임 화면을 flex column으로 구성 */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
     .overlay * { pointer-events: auto; }
 
@@ -568,7 +572,7 @@
     #nav-ads      .nav-icon { color: #DDA0DD; text-shadow: 0 0 8px rgba(221,160,221,0.6); }
 
     /* ══ 게임 HUD (압축형, 50px) ═══════════════════════════ */
-    #game-hud { position:absolute; top:0; left:0; width:800px; pointer-events:none; }
+    #game-hud { flex-shrink:0; width:800px; pointer-events:none; }
     #hud-bar {
       display:flex; align-items:center; justify-content:space-between;
       background:rgba(3,7,18,0.96);
@@ -611,7 +615,7 @@
 
     /* ══ 게임 필드 패널 (컴팩트 다이아몬드) ══════════════ */
     #game-field {
-      position:absolute; top:60px; left:0; width:800px; height:108px;
+      flex:1; min-height:60px; width:800px;
       border-bottom:1px solid rgba(255,255,255,0.06); overflow:hidden;
     }
     #field-canvas { display:block; }
@@ -694,18 +698,18 @@
     /* ══ 단어 퍼즐 패널 (공격팀 전용) ════════════════════ */
     /* ══ 하단 래퍼: 퍼즐 위 / 아이템 바 아래 ════════════ */
     #game-bottom {
-      position:absolute; top:170px; bottom:0; left:0; width:800px;
-      display:flex; flex-direction:column; justify-content:flex-end;
-      pointer-events:none; /* 자식이 직접 이벤트 처리 */
+      flex-shrink:0; width:800px;
+      display:flex; flex-direction:column;
+      pointer-events:none;
     }
     #puzzle-panel {
-      flex:1; min-height:0; /* flex 아이템으로서 남은 공간 전부 차지 */
+      flex-shrink:0; /* 내용 높이 그대로 — 스크롤 없음 */
       pointer-events:auto;
       background:rgba(4,10,28,0.88);
       border-top:1px solid rgba(255,255,255,0.13);
-      padding:14px 32px 14px; /* padding-bottom 해킹 불필요 */
+      padding:14px 32px 14px;
       display:flex; flex-direction:column; gap:10px;
-      overflow-y:auto;
+      overflow:hidden;
     }
     /* HINT 영역 */
     #puzzle-hint {
