@@ -1663,8 +1663,9 @@ class BGScene extends Phaser.Scene {
       fontSize: '13px', fill: '#607088', fontFamily: "'Inter',monospace",
     }).setOrigin(0.5).setVisible(false);
     this.feedText = this.add.text(W / 2, 278, '', {
-      fontSize: '20px', fontStyle: 'bold', fill: '#3fb950',
+      fontSize: '26px', fontStyle: 'bold', fill: '#3fb950',
       fontFamily: "'Inter',sans-serif",
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setVisible(false);
 
     this.registry.set('bgScene', this);
@@ -2621,7 +2622,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
       }, 5000);
       return;
     }
-    showFeedText(`✗ 정답: ${word.word}`, '#f85149');
+    showFeedText(`✗ 정답: ${word.word}`, '#FFD700');
     if (inningChanged) {
       setTimeout(() => {
         toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
@@ -3173,7 +3174,7 @@ socket.on('state:answer_result', data => {
   } else {
     const outMsg = data.out ? ` (${data.outs}/3)` : '';
     toast(`${isMe ? '나' : '상대'}: 아웃${outMsg}`, '#f85149');
-    showFeedText(`✗ 정답: ${data.correct_answer}`, '#f85149');
+    showFeedText(`✗ 정답: ${data.correct_answer}`, '#FFD700');
 
     // 공격팀 본인만 슬롯에 정답 2초 표시
     if (isMe && data.word) {
