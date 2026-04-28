@@ -827,6 +827,20 @@
                          text-shadow:0 0 14px rgba(74,222,128,0.7); }
     #puzzle-timer-text.warn   { color:#fbbf24; text-shadow:0 0 14px rgba(251,191,36,0.7); }
     #puzzle-timer-text.danger { color:#f87171; text-shadow:0 0 14px rgba(248,113,113,0.7); }
+    #puzzle-timer-text.inf    { color:rgba(255,255,255,0.25); font-size:22px;
+                                text-shadow:none; }
+
+    /* TTS 발음 버튼 */
+    #btn-tts {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:5px 13px;
+      background:rgba(99,179,237,0.18); border:1px solid rgba(99,179,237,0.45);
+      border-radius:20px; color:#93c5fd; font-size:12px; font-weight:700;
+      font-family:'Inter',sans-serif; cursor:pointer; transition:all 0.15s;
+      white-space:nowrap;
+    }
+    #btn-tts:hover { background:rgba(99,179,237,0.32); border-color:rgba(99,179,237,0.80);
+                     box-shadow:0 0 10px rgba(99,179,237,0.35); }
 
     /* ══ 연습 모드 HUD ══════════════════════════════════════ */
     #practice-hud {
@@ -1342,8 +1356,14 @@
         <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">철자 타일</div>
         <div id="letter-tiles" style="display:flex;gap:6px;flex-wrap:wrap;min-height:54px;"></div>
       </div>
-      <!-- 2. 힌트 -->
-      <div id="puzzle-hint"><span class="hint-label">HINT</span><span id="puzzle-hint-text">—</span></div>
+      <!-- 2. 힌트 + TTS 버튼 -->
+      <div id="puzzle-hint">
+        <span class="hint-label">HINT</span>
+        <span id="puzzle-hint-text">—</span>
+        <div style="margin-top:8px;">
+          <button id="btn-tts">🔊 발음 듣기</button>
+        </div>
+      </div>
       <!-- 3. 정답 입력 슬롯 -->
       <div>
         <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">정답 입력</div>
@@ -2023,6 +2043,12 @@ function showOffenseView() {
   show('puzzle-panel');
   show('item-bar');
   _setItemMode('offense');
+  if (State.gameMode === 'practice') {
+    // 연습 모드: 시간 연장·방해 아이템 비활성화
+    document.getElementById('item-time').disabled = true;
+    document.getElementById('item-sabotage').disabled = true;
+    document.getElementById('item-sabotage').classList.remove('defense-active');
+  }
 }
 function showDefenseView() {
   hide('puzzle-panel');
@@ -2127,6 +2153,7 @@ function useItem(type) {
     unrevealed.sort(() => Math.random() - 0.5).slice(0, 3).forEach(si => _revealSlot(si));
     toast('💡 랜덤 3글자 공개!', '#FFE566');
   } else if (type === 'time') {
+    if (State.gameMode === 'practice') return; // 연습 모드엔 타이머 없음
     if (!_consumeItem()) return;
     _timerSec = Math.min(_timerSec + 10, 60);
     document.getElementById('puzzle-timer-text').textContent = _timerSec;
@@ -2282,7 +2309,14 @@ function buildPuzzle(wordData) {
 
   refreshPuzzleUI();
   showOffenseView();
-  startTimer(() => submitPuzzleAnswer(true)); // 시간 초과 = 스트라이크
+  if (State.gameMode === 'practice') {
+    stopTimer();
+    const txt = document.getElementById('puzzle-timer-text');
+    txt.textContent = '∞';
+    txt.className = 'inf';
+  } else {
+    startTimer(() => submitPuzzleAnswer(true)); // 시간 초과 = 스트라이크
+  }
 }
 
 function selectTile(ti) {
@@ -2437,6 +2471,18 @@ function _localHitType() {
   return _timerSec >= 7 ? 'homerun' : 'triple';
 }
 
+function _practiceHitType() {
+  // 연습 모드용 타격 판정 (타이머 없으므로 홈런 제외)
+  const wLen = State.puzzleWord?.length ?? 1;
+  const pfx  = State.prefilledSlots ?? new Set();
+  const lck  = State.lockedSlots    ?? new Set();
+  const firstKnown = pfx.has(0) || lck.has(0);
+  const lastKnown  = pfx.has(wLen - 1) || lck.has(wLen - 1);
+  if (firstKnown && lastKnown) return 'single'; // 첫글자+마지막글자 힌트 → 1루타
+  if (firstKnown || lck.size > 0) return 'double'; // 첫글자만 힌트 → 2루타
+  return 'triple'; // 힌트 없이 맞춤 → 3루타 (홈런 없음)
+}
+
 /* ── 로컬 정답 처리 ──────────────────────────────────── */
 function _handleLocalAnswer(answer, timedOut) {
   const word = State.currentWord;
@@ -2556,8 +2602,14 @@ function startPracticeSelect() {
 }
 
 function startPracticeGame(difficulty) {
+  LocalGame.reset(99); // 사실상 무한 이닝
   State.gameMode = 'practice';
   State.practiceStats = { correct:0, wrong:0, difficulty };
+  State.players = [
+    { sid:'player', username: State.username || 'PLAYER', team:'top' },
+    { sid:'pitcher', username:'불펜', team:'bottom' },
+  ];
+  State.myTeam = 'top';
   hideAll();
   show('practice-hud'); show('game-field'); show('item-bar');
   _bgSwitch('game');
@@ -2569,6 +2621,7 @@ function startPracticeGame(difficulty) {
   badge.className   = `ph-badge ${cls[difficulty] || 'easy'}`;
   initItems();
   _updatePracticeStats();
+  updateScoreboard(LocalGame.toHUD());
   _practiceNextWord();
 }
 
@@ -2590,15 +2643,35 @@ function _handlePracticeAnswer(correct, word) {
   const s = State.practiceStats;
   if (correct) {
     s.correct++;
-    toast(`🎉 정답!  ${word.word}`, '#4ade80');
-    showFeedText(`정답!  ${word.word}`, '#4ade80');
+    const hitType = _practiceHitType();
+    const result  = LocalGame.hit(hitType);
+    const labels  = { single:'1루타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨' };
+    toast(`${labels[hitType]}  ${word.word}`, '#f0883e');
+    showFeedText(`${labels[hitType]}  ${word.word}`, '#f0883e');
+    updateScoreboard(LocalGame.toHUD());
+    if (result.runs > 0) showScoreCeremony(result.runs, 'top');
+    // 정답 확인 후 TTS 한 번 더 재생
+    speakWord(word.word, TTS_LANG[State.answerLang] ?? 'en-US');
     hide('puzzle-panel');
-    setTimeout(() => _practiceNextWord(), 1500);
+    setTimeout(() => _practiceNextWord(), 1800);
   } else {
     s.wrong++;
-    toast(`✗ 정답: ${word.word}`, '#f85149');
+    const prevInning = LocalGame.inning;
+    const result     = LocalGame.strike();
+    const isThirdOut = result.out && LocalGame.outs === 0;
+    const displayOut = isThirdOut ? 3 : LocalGame.outs;
+    toast(`아웃 (${displayOut}/3)`, '#f85149');
     _showCorrectAnswer(word.word);
-    setTimeout(() => { hide('puzzle-panel'); _practiceNextWord(); }, 2000);
+    updateScoreboard(LocalGame.toHUD());
+    // 게임오버(이닝 소진)가 되면 새 게임으로 리셋 — 틀려도 계속 진행
+    if (LocalGame.gameOver) LocalGame.reset(99);
+    const resumeDelay = isThirdOut ? 3200 : 2200;
+    if (isThirdOut) {
+      setTimeout(() => {
+        toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
+      }, 2100);
+    }
+    setTimeout(() => { hide('puzzle-panel'); _practiceNextWord(); }, resumeDelay);
   }
   _updatePracticeStats();
 }
@@ -2636,7 +2709,12 @@ document.getElementById('btn-practice-start').onclick = () => startPracticeGame(
 document.getElementById('btn-practice-back').onclick  = () => { hideAll(); show('lobby-panel'); };
 document.getElementById('btn-practice-exit').onclick = () => {
   State.gameMode = null;
+  stopTimer();
   hideAll(); show('lobby-panel');
+};
+document.getElementById('btn-tts').onclick = () => {
+  const w = State.currentWord;
+  if (w) speakWord(w.word, TTS_LANG[State.answerLang] ?? 'en-US');
 };
 
 function goResult(data) {
