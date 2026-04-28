@@ -833,18 +833,25 @@
     #puzzle-timer-text.inf    { color:rgba(255,255,255,0.25); font-size:22px;
                                 text-shadow:none; }
 
-    /* 연습 모드 다음 버튼 */
+    /* 연습 모드 하단 고정 다음 버튼 바 */
+    #practice-next-bar {
+      position:fixed; bottom:0; left:0; right:0; height:70px;
+      z-index:9999; pointer-events:auto;
+      background:rgba(3,7,18,0.97); border-top:1px solid rgba(76,175,130,0.30);
+      display:flex; align-items:center; justify-content:center;
+      box-sizing:border-box;
+    }
     #btn-practice-next {
-      padding:10px 36px;
+      padding:12px 56px;
       background:linear-gradient(135deg,#3a9e6e,#4CAF82);
-      color:#fff; border:none; border-radius:10px;
-      font-size:15px; font-weight:700; font-family:'Inter',sans-serif;
-      cursor:pointer; box-shadow:0 4px 16px rgba(76,175,130,0.50);
-      transition:all 0.15s;
+      color:#fff; border:none; border-radius:12px;
+      font-size:16px; font-weight:700; font-family:'Inter',sans-serif;
+      cursor:pointer; box-shadow:0 4px 18px rgba(76,175,130,0.55);
+      transition:all 0.15s; letter-spacing:0.5px;
     }
     #btn-practice-next:hover {
       background:linear-gradient(135deg,#4CAF82,#6dcfa0);
-      transform:translateY(-2px); box-shadow:0 6px 22px rgba(76,175,130,0.65);
+      transform:translateY(-2px); box-shadow:0 6px 24px rgba(76,175,130,0.70);
     }
 
     /* TTS 발음 버튼 */
@@ -1401,10 +1408,6 @@
             text-shadow:0 1px 2px rgba(0,0,0,0.5);">제출</button>
         </div>
       </div>
-      <!-- 연습 모드: 정답 후 다음 버튼 -->
-      <div id="practice-next-row" class="hidden" style="text-align:center;padding-top:4px;">
-        <button id="btn-practice-next">다음 ▶</button>
-      </div>
     </div>
 
     <!-- ══ 아이템 바 (공격·수비 공통) ══════════════════════ -->
@@ -1439,6 +1442,11 @@
     </div>
 
     </div><!-- /#game-bottom -->
+
+    <!-- ══ 연습 모드 다음 버튼 (하단 고정) ══════════════════ -->
+    <div id="practice-next-bar" class="hidden">
+      <button id="btn-practice-next">다음 ▶</button>
+    </div>
 
     <!-- ══ 콜드게임 배너 ═════════════════════════════════ -->
     <div id="cold-game-banner" class="hidden">
@@ -1811,7 +1819,7 @@ function hide(id)  { document.getElementById(id).classList.add('hidden'); }
 function hideAll() {
   ['login-panel','register-panel','lobby-panel','settings-modal','waiting-panel',
    'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel',
-   'game-field','defense-panel','puzzle-panel','practice-next-row',
+   'game-field','defense-panel','puzzle-panel','practice-next-bar',
    'item-bar','cold-game-banner','result-panel'].forEach(hide);
 }
 
@@ -2062,13 +2070,11 @@ function showOffenseView() {
   hide('defense-panel');
   hide('def-timer-wrap');
   show('puzzle-panel');
-  show('item-bar');
-  _setItemMode('offense');
   if (State.gameMode === 'practice') {
-    // 연습 모드: 시간 연장·방해 아이템 비활성화
-    document.getElementById('item-time').disabled = true;
-    document.getElementById('item-sabotage').disabled = true;
-    document.getElementById('item-sabotage').classList.remove('defense-active');
+    hide('item-bar'); // 연습 모드는 아이템 바 없음
+  } else {
+    show('item-bar');
+    _setItemMode('offense');
   }
 }
 function showDefenseView() {
@@ -2578,7 +2584,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
         } else {
           _afterCpuAnswer();
         }
-      }, 2000);
+      }, 6000);
       return;
     }
     showFeedText(`✗ 정답: ${word.word}`, '#f85149');
@@ -2586,13 +2592,13 @@ function _handleCpuAnswer(correct, timedOut, word) {
       setTimeout(() => {
         toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
         setTimeout(() => _afterCpuAnswer(), 1500);
-      }, 1800);
+      }, 6000);
       return;
     }
   }
   updateHUD(LocalGame.toHUD());
   updateScoreboard(LocalGame.toHUD());
-  setTimeout(() => _afterCpuAnswer(), 1800);
+  setTimeout(() => _afterCpuAnswer(), 6000);
 }
 
 function _afterCpuAnswer() {
@@ -2632,7 +2638,7 @@ function startPracticeGame(difficulty) {
   ];
   State.myTeam = 'top';
   hideAll();
-  show('practice-hud'); show('game-field'); show('item-bar');
+  show('practice-hud'); show('game-field');
   _bgSwitch('game');
   setBgPlayerRole('pitcher');
   const labels = { 1:'AA리그', 2:'마이너리그', 3:'메이저리그' };
@@ -2640,7 +2646,6 @@ function startPracticeGame(difficulty) {
   const badge  = document.getElementById('practice-diff-badge');
   badge.textContent = labels[difficulty] || 'AA리그';
   badge.className   = `ph-badge ${cls[difficulty] || 'easy'}`;
-  initItems();
   _updatePracticeStats();
   updateScoreboard(LocalGame.toHUD());
   _practiceNextWord();
@@ -2653,7 +2658,7 @@ function _updatePracticeStats() {
 }
 
 async function _practiceNextWord() {
-  hide('practice-next-row');
+  hide('practice-next-bar');
   const word = await fetchLocalWord(State.practiceStats.difficulty);
   if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
   State.currentWord = word;
@@ -2674,7 +2679,7 @@ function _handlePracticeAnswer(correct, word) {
     if (result.runs > 0) showScoreCeremony(result.runs, 'top');
     speakWord(word.word, TTS_LANG[State.answerLang] ?? 'en-US');
     _showCorrectAnswer(word.word); // 슬롯 초록색으로 잠금
-    show('practice-next-row');    // "다음 ▶" 버튼 표시, 자동 진행 없음
+    show('practice-next-bar');    // "다음 ▶" 버튼 표시, 자동 진행 없음
   } else {
     s.wrong++;
     const prevInning = LocalGame.inning;
@@ -2737,7 +2742,7 @@ document.getElementById('btn-tts').onclick = () => {
   if (w) speakWord(w.word, TTS_LANG[State.answerLang] ?? 'en-US');
 };
 document.getElementById('btn-practice-next').onclick = () => {
-  hide('practice-next-row');
+  hide('practice-next-bar');
   hide('puzzle-panel');
   _practiceNextWord();
 };
