@@ -2453,23 +2453,24 @@ function submitPuzzleAnswer(timedOut = false) {
 
 /* ── 로컬 야구 엔진 ──────────────────────────────────── */
 const LocalGame = {
-  inning: 1, outs: 0, strikes: 0, balls: 0,
-  bases: [false,false,false], score: 0, maxInnings: 2, gameOver: false,
+  inning: 1, half: 'top', outs: 0, strikes: 0, balls: 0,
+  bases: [false,false,false], score: { top:0, bottom:0 },
+  maxInnings: 2, gameOver: false, twoTeams: false,
 
-  reset(maxInnings) {
+  reset(maxInnings, twoTeams = false) {
     Object.assign(this, {
-      inning:1, outs:0, strikes:0, balls:0,
-      bases:[false,false,false], score:0,
-      maxInnings, gameOver:false,
+      inning:1, half:'top', outs:0, strikes:0, balls:0,
+      bases:[false,false,false], score:{ top:0, bottom:0 },
+      maxInnings, gameOver:false, twoTeams,
     });
   },
 
   toHUD() {
     return {
-      inning: this.inning, half:'top',
+      inning: this.inning, half: this.half,
       outs: this.outs, strikes: this.strikes, balls: this.balls,
       bases: [...this.bases],
-      score: { top: this.score, bottom: 0 },
+      score: { top: this.score.top, bottom: this.score.bottom },
     };
   },
 
@@ -2486,7 +2487,7 @@ const LocalGame = {
     const bPos = n - 1;
     if (bPos < 3) nb[bPos] = true; else runs++;
     this.bases = nb;
-    this.score += runs;
+    this.score[this.half] += runs;
     this.strikes = 0; this.balls = 0;
     return { event:'hit', hit_type:type, runs };
   },
@@ -2494,15 +2495,20 @@ const LocalGame = {
   strike() {
     this.outs++;
     this.strikes = 0; this.balls = 0;
-    if (this.outs >= 3) this._endInning();
+    if (this.outs >= 3) this._endHalf();
     return { event:'out', out: true };
   },
 
-  _endInning() {
+  _endHalf() {
     this.outs = 0; this.strikes = 0; this.balls = 0;
     this.bases = [false,false,false];
-    this.inning++;
-    if (this.inning > this.maxInnings) this.gameOver = true;
+    if (this.twoTeams && this.half === 'top') {
+      this.half = 'bottom';
+    } else {
+      this.half = 'top';
+      this.inning++;
+      if (this.inning > this.maxInnings) this.gameOver = true;
+    }
   },
 };
 
@@ -2572,7 +2578,7 @@ function _handleLocalAnswer(answer, timedOut) {
 
 /* ── CPU 모드 ─────────────────────────────────────────── */
 function startCpuGame() {
-  LocalGame.reset(State.selectedInning ?? 2);
+  LocalGame.reset(State.selectedInning ?? 2, true); // twoTeams=true
   State.gameMode = 'cpu';
   State.players  = [
     { sid:'player', username: State.username || 'PLAYER', team:'top' },
@@ -2580,9 +2586,8 @@ function startCpuGame() {
   ];
   State.myTeam = 'top';
   hideAll();
-  show('game-hud'); show('game-field'); show('item-bar');
+  show('game-hud'); show('game-field');
   _bgSwitch('game');
-  setBgPlayerRole('batter');
   initWordPool();
   updateHUD(LocalGame.toHUD());
   updateScoreboard(LocalGame.toHUD());
@@ -2591,11 +2596,58 @@ function startCpuGame() {
 
 async function _cpuNextTurn() {
   if (LocalGame.gameOver) { _endCpuGame(); return; }
+  if (LocalGame.half === 'top') {
+    await _playerAttackTurn();
+  } else {
+    _aiAttackTurn();
+  }
+}
+
+async function _playerAttackTurn() {
+  setBgPlayerRole('batter');
+  show('item-bar');
   const diff = State.selectedLeague ?? 1;
   const word = await fetchLocalWord(diff);
   if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
   State.currentWord = word;
   buildPuzzle(word);
+}
+
+/* AI 공격: 난이도별 확률로 루타/아웃 자동 결정 */
+function _aiAttackTurn() {
+  const diff        = State.selectedLeague ?? 1;
+  const successRate = { 1:0.70, 2:0.50, 3:0.30 }[diff] ?? 0.50;
+  const hitType     = { 1:'single', 2:'double', 3:'triple' }[diff] ?? 'single';
+  const hitLabels   = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨' };
+
+  setBgPlayerRole('pitcher');
+  hide('puzzle-panel'); hide('item-bar');
+  updateHUD(LocalGame.toHUD());
+  updateScoreboard(LocalGame.toHUD());
+  toast('🤖 AI 공격 중…', '#c084fc');
+
+  setTimeout(() => {
+    const prevInning = LocalGame.inning;
+    if (Math.random() < successRate) {
+      const result = LocalGame.hit(hitType);
+      updateHUD(LocalGame.toHUD());
+      updateScoreboard(LocalGame.toHUD());
+      toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
+      showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
+      if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
+    } else {
+      const result      = LocalGame.strike();
+      const isThirdOut  = result.out && LocalGame.outs === 0;
+      const displayOuts = isThirdOut ? 3 : LocalGame.outs;
+      updateHUD(LocalGame.toHUD());
+      updateScoreboard(LocalGame.toHUD());
+      toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
+      if (isThirdOut && !LocalGame.gameOver) {
+        setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
+      }
+    }
+    setTimeout(() => _afterCpuAnswer(), 3000);
+  }, 2000);
 }
 
 function _handleCpuAnswer(correct, timedOut, word) {
@@ -2612,12 +2664,11 @@ function _handleCpuAnswer(correct, timedOut, word) {
     if (hitType === 'homerun') showHomerunCeremony();
     else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
   } else {
-    const prevInning    = LocalGame.inning;
-    result              = LocalGame.strike();
-    const isThirdOut    = result.out && LocalGame.outs === 0;
-    const inningChanged = isThirdOut && !LocalGame.gameOver;
-    const displayOuts   = isThirdOut ? 3 : LocalGame.outs;
-    const outMsg        = result.out ? ` (${displayOuts}/3)` : '';
+    result            = LocalGame.strike();
+    const isThirdOut  = result.out && LocalGame.outs === 0;
+    const halfChanged = isThirdOut && !LocalGame.gameOver; // top half → bottom (AI 공격)
+    const displayOuts = isThirdOut ? 3 : LocalGame.outs;
+    const outMsg      = result.out ? ` (${displayOuts}/3)` : '';
     toast(`아웃${outMsg}`, '#f85149');
     updateHUD(LocalGame.toHUD());
     updateScoreboard(LocalGame.toHUD());
@@ -2625,8 +2676,8 @@ function _handleCpuAnswer(correct, timedOut, word) {
       _showCorrectAnswer(word.word);
       setTimeout(() => {
         hide('puzzle-panel');
-        if (inningChanged) {
-          toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
+        if (halfChanged) {
+          toast('⚾ 이닝 초 종료  →  AI 공격!', '#c084fc');
           setTimeout(() => _afterCpuAnswer(), 1500);
         } else {
           _afterCpuAnswer();
@@ -2635,9 +2686,9 @@ function _handleCpuAnswer(correct, timedOut, word) {
       return;
     }
     showFeedText(`✗ 정답: ${word.word}`, '#FFD700');
-    if (inningChanged) {
+    if (halfChanged) {
       setTimeout(() => {
-        toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
+        toast('⚾ 이닝 초 종료  →  AI 공격!', '#c084fc');
         setTimeout(() => _afterCpuAnswer(), 1500);
       }, 5000);
       return;
@@ -2654,14 +2705,14 @@ function _afterCpuAnswer() {
 }
 
 function _endCpuGame() {
-  const score = LocalGame.score;
-  const coin  = score >= 10;
-  const data  = {
-    score: { top: score, bottom: 0 },
-    winner: score > 0 ? 'top' : 'tie',
-    coin,
-  };
-  goResult(data);
+  const top    = LocalGame.score.top;
+  const bottom = LocalGame.score.bottom;
+  const winner = top > bottom ? 'top' : top < bottom ? 'bottom' : 'tie';
+  goResult({
+    score:  { top, bottom },
+    winner,
+    coin: top >= 10,
+  });
 }
 
 /* ── 연습 모드 ──────────────────────────────────────────── */
