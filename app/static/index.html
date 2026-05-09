@@ -754,6 +754,7 @@
       font-family:'Fredoka One', 'Nunito', sans-serif; cursor:pointer;
       transition:all 0.15s; display:flex; align-items:center; justify-content:center;
       text-shadow:0 2px 4px rgba(0,0,0,0.9); user-select:none; flex-shrink:0;
+      text-transform:uppercase;
     }
     .letter-tile:hover:not(.used) {
       background:rgba(99,179,237,0.30); border-color:rgba(99,179,237,0.8);
@@ -766,7 +767,7 @@
       border:2px dashed rgba(59,130,246,0.85); border-radius:16px;
       color:#1e3a5f; font-size:34px; font-weight:700; letter-spacing:0.04em;
       font-family:'Fredoka One', 'Nunito', sans-serif; display:flex; align-items:center;
-      justify-content:center; cursor:pointer; transition:all 0.15s;
+      justify-content:center; cursor:pointer; transition:all 0.15s; text-transform:uppercase;
       text-shadow:none; user-select:none; flex-shrink:0;
     }
     .answer-slot.filled {
@@ -2321,7 +2322,7 @@ function _prefillSlot(si) {
 
 /* ── 퍼즐 빌드 ─────────────────────────────────────────── */
 function buildPuzzle(wordData) {
-  const word   = (wordData.word || '').toUpperCase();
+  const word   = (wordData.word || '').toLowerCase();
   const hint   = wordData.meaning || wordData.hint || '';
   const letters = word.split('');
   // 셔플
@@ -2510,13 +2511,22 @@ async function fetchLocalWord(difficulty) {
   try {
     const hl = State.hintLang   ?? 'ko';
     const al = State.answerLang ?? 'en';
+    console.log(`[fetchLocalWord] difficulty=${difficulty} hintLang=${hl} answerLang=${al}`);
     const res = await fetch(
       `/api/words/random?difficulty=${difficulty}&question_lang=${hl}&answer_lang=${al}`,
       { credentials:'include' }
     );
-    if (!res.ok) return null;
-    return await res.json();
-  } catch(e) { return null; }
+    if (!res.ok) {
+      console.warn(`[fetchLocalWord] API 실패: ${res.status} (answer_lang=${al})`);
+      return null;
+    }
+    const data = await res.json();
+    console.log(`[fetchLocalWord] 응답:`, data);
+    return data;
+  } catch(e) {
+    console.error('[fetchLocalWord] 오류:', e);
+    return null;
+  }
 }
 
 function _localHitType() {
@@ -2549,7 +2559,9 @@ function _practiceHitType() {
 function _handleLocalAnswer(answer, timedOut) {
   const word = State.currentWord;
   if (!word) return;
-  const correct = !timedOut && answer === word.word.toLowerCase();
+  const expected = word.word.toLowerCase();
+  console.log(`[_handleLocalAnswer] answerLang=${State.answerLang} | submitted="${answer}" | expected="${expected}" | match=${answer === expected} | timedOut=${timedOut}`);
+  const correct = !timedOut && answer === expected;
 
   if (State.gameMode === 'practice') {
     _handlePracticeAnswer(correct, word);
@@ -3204,7 +3216,7 @@ socket.on('state:answer_result', data => {
 });
 
 function _showCorrectAnswer(word) {
-  const letters = word.toUpperCase().split('');
+  const letters = word.toLowerCase().split('');
   const slots = document.getElementById('answer-slots').children;
   // 슬롯 수가 단어 길이와 다를 경우 대비
   for (let i = 0; i < slots.length; i++) {
