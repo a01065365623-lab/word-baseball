@@ -2342,7 +2342,7 @@ function buildPuzzle(wordData) {
   const hintMode = _isCpu
     ? Math.floor(Math.random() * 3)
     : (wordData.difficulty === 1 ? 2 : wordData.difficulty === 2 ? 1 : 0);
-  console.log(`[buildPuzzle] gameMode=${State.gameMode} | word=${word} | diff=${wordData.difficulty} | hintMode=${hintMode} (${['없음','첫글자','양끝'][hintMode]})`);
+  console.log(`[buildPuzzle] gameMode=${State.gameMode} | answerLang=${State.answerLang} | word=${word} | diff=${wordData.difficulty} | hintMode=${hintMode} (${['없음','첫글자','양끝'][hintMode]})`);
   if (hintMode >= 1) _prefillSlot(0);
   if (hintMode >= 2) _prefillSlot(word.length - 1);
 
