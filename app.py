@@ -181,18 +181,37 @@ def _emit_select_difficulty(code: str):
     }, to=code)
 
 
+def _pick_blanks(word: str) -> int:
+    """빈칸 개수 3~6 중 무작위 선택 (단어 길이에 맞춰 클램프)."""
+    raw = random.randint(3, 6)
+    return max(1, min(raw, max(1, len(word) - 1)))
+
+
+def _hit_type_for_blanks(blanks: int, time_left: int) -> str:
+    """빈칸 개수 → 타격 결과. 6빈칸(홈런 후보)은 7초 이상 남았을 때만 홈런, 아니면 3루타."""
+    if blanks <= 3:
+        return 'single'
+    if blanks == 4:
+        return 'double'
+    if blanks == 5:
+        return 'triple'
+    return 'homerun' if time_left >= 7 else 'triple'
+
+
 def _emit_new_word(code: str, difficulty: int, hint_lang: str = 'ko', answer_lang: str = 'en'):
     """words.db에서 단어 조회 후 state:new_word 브로드캐스트."""
     word = _db_word(difficulty, hint_lang, answer_lang)
     if not word:
         emit('state:error', {'message': '단어 데이터를 불러올 수 없습니다'}, to=code)
         return
+    word['blanks'] = _pick_blanks(word['word'])
     room_manager.set_current_word(code, word)
     offense_sid, defense_sid = _offense_defense(code)
     emit('state:new_word', {
         'word':         word['word'],
         'meaning':      word['meaning'],    # 힌트 (hint_lang)
         'difficulty':   word['difficulty'],
+        'blanks':       word['blanks'],
         'offense_sid':  offense_sid,
         'defense_sid':  defense_sid,
         'offense_team': room_manager.get_game(code).half,
@@ -314,19 +333,14 @@ def on_answer(data):
 
     user_answer = (data.get('answer') or '').strip().lower()
     word_str    = current_word['word'].lower()
-    difficulty  = current_word.get('difficulty', 1)
+    blanks      = current_word.get('blanks', 3)
 
     # 퍼즐 정답 = 영어 철자 그대로 (한국어 뜻이 아님)
     is_correct = (user_answer == word_str)
 
     if is_correct:
         time_left = int(data.get('time_left') or 0)
-        if time_left >= 8:          # 7초 안에 정답 → 홈런
-            hit_type = 'homerun'
-        else:
-            hit_map = {1: 'single', 2: 'double', 3: 'triple'}
-            hit_type = hit_map.get(difficulty, 'single')
-        result = game.hit(hit_type)
+        result = game.hit(_hit_type_for_blanks(blanks, time_left))
     else:
         result = game.strike()
 

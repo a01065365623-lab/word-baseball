@@ -1426,7 +1426,7 @@
     <div id="puzzle-panel" class="hidden">
       <!-- 1. 철자 타일 -->
       <div>
-        <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">철자 타일</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">보기 철자</div>
         <div id="letter-tiles" style="display:flex;gap:6px;flex-wrap:wrap;min-height:54px;"></div>
       </div>
       <!-- 2. 힌트 + TTS 버튼 -->
@@ -2215,7 +2215,7 @@ function _revealSlot(si) {
   const letter = State.puzzleWord[si];
   if (!letter) return;
   if (State.answerIndices[si] !== null) return; // 이미 채워짐
-  const ti = State.puzzleTiles.findIndex((t, i) => !t.used && t.letter === letter);
+  const ti = State.puzzleTiles.findIndex(t => !t.used && !t.decoy && t.letter === letter);
   if (ti === -1) return; // 같은 글자 타일 없음
   State.puzzleTiles[ti].used = true;
   State.answerIndices[si] = ti;
@@ -2223,26 +2223,48 @@ function _revealSlot(si) {
   refreshPuzzleUI();
 }
 
+// 아직 채워지지 않은 빈칸 중 가장 왼쪽 / 가장 오른쪽 위치
+function _firstUnfilledBlank() {
+  const len = State.puzzleWord?.length ?? 0;
+  for (let i = 0; i < len; i++) {
+    if (!State.prefilledSlots?.has(i) && State.answerIndices[i] === null) return i;
+  }
+  return -1;
+}
+function _lastUnfilledBlank() {
+  const len = State.puzzleWord?.length ?? 0;
+  for (let i = len - 1; i >= 0; i--) {
+    if (!State.prefilledSlots?.has(i) && State.answerIndices[i] === null) return i;
+  }
+  return -1;
+}
+
 function useItem(type) {
   if ((State.itemsLeft ?? 0) <= 0) return;
   if (type === 'first') {
     if (!_consumeItem()) return;
-    _revealSlot(0);
-    toast('🔤 첫 번째 글자 공개!', '#FFE566');
+    const si = _firstUnfilledBlank();
+    if (si !== -1) _revealSlot(si);
+    toast('🔤 빈칸 한 글자 공개!', '#FFE566');
+    _checkPuzzleComplete();
   } else if (type === 'ends') {
     if (!_consumeItem()) return;
-    _revealSlot(0);
-    _revealSlot((State.puzzleWord?.length ?? 1) - 1);
-    toast('🔡 양끝 글자 공개!', '#FFE566');
+    const a = _firstUnfilledBlank();
+    if (a !== -1) _revealSlot(a);
+    const b = _lastUnfilledBlank();
+    if (b !== -1 && b !== a) _revealSlot(b);
+    toast('🔡 빈칸 두 글자 공개!', '#FFE566');
+    _checkPuzzleComplete();
   } else if (type === 'random') {
     if (!_consumeItem()) return;
     const len = State.puzzleWord?.length ?? 0;
     const unrevealed = [];
     for (let i = 0; i < len; i++) {
-      if (State.answerIndices[i] === null) unrevealed.push(i);
+      if (!State.prefilledSlots?.has(i) && State.answerIndices[i] === null) unrevealed.push(i);
     }
     unrevealed.sort(() => Math.random() - 0.5).slice(0, 3).forEach(si => _revealSlot(si));
-    toast('💡 랜덤 3글자 공개!', '#FFE566');
+    toast('💡 랜덤 빈칸 공개!', '#FFE566');
+    _checkPuzzleComplete();
   } else if (type === 'time') {
     if (State.gameMode === 'practice') return; // 연습 모드엔 타이머 없음
     if (!_consumeItem()) return;
@@ -2329,52 +2351,80 @@ function stopTimer() {
   _timerInterval = null;
 }
 
-/* ── 기본 힌트 슬롯 사전 배치 ─────────────────────────── */
+/* ── 정답 글자 미리 표시 (빈칸이 아닌 자리) ───────────── */
 function _prefillSlot(si) {
   const letter = State.puzzleWord[si];
-  if (!letter || State.answerIndices[si] !== null) {
-    console.warn(`[_prefillSlot] si=${si} 건너뜀 — letter=${letter} answerIndices[si]=${State.answerIndices[si]}`);
-    return;
-  }
-  const ti = State.puzzleTiles.findIndex(t => !t.used && t.letter === letter);
-  if (ti === -1) {
-    console.warn(`[_prefillSlot] si=${si} 타일 없음 — letter=${letter}`);
-    return;
-  }
+  if (!letter || State.answerIndices[si] !== null) return;
+  const ti = State.puzzleTiles.findIndex(t => !t.used && !t.decoy && t.letter === letter);
+  if (ti === -1) return;
   State.puzzleTiles[ti].used      = true;
   State.puzzleTiles[ti].prefilled = true;
   State.answerIndices[si]         = ti;
   State.prefilledSlots.add(si);
-  console.log(`[_prefillSlot] si=${si} letter=${letter} OK → prefilledSlots=[${[...State.prefilledSlots]}]`);
 }
 
-/* ── 퍼즐 빌드 ─────────────────────────────────────────── */
+/* 단어에 없는 글자 중 임의로 오답 보기 글자를 고른다 */
+function _decoyLetters(word, count) {
+  const used = new Set(word.split(''));
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  const decoys = [];
+  let guard = 0;
+  while (decoys.length < count && guard++ < 200) {
+    const c = alphabet[Math.floor(Math.random() * alphabet.length)];
+    if (!used.has(c) && !decoys.includes(c)) decoys.push(c);
+  }
+  return decoys;
+}
+
+/* 모든 빈칸이 채워지면 자동으로 정답 제출 */
+function _checkPuzzleComplete() {
+  if (State.answerIndices?.length && State.answerIndices.every(ti => ti !== null)) {
+    submitPuzzleAnswer();
+  }
+}
+
+/* ── 퍼즐 빌드 (빈칸 채우기 방식) ──────────────────────── */
 function buildPuzzle(wordData) {
-  const word   = (wordData.word || '').toLowerCase();
-  const hint   = wordData.meaning || wordData.hint || '';
-  const letters = word.split('');
-  // 셔플
-  const shuffled = [...letters].map((l, i) => ({ l, i }))
-    .sort(() => Math.random() - 0.5);
+  const word = (wordData.word || '').toLowerCase();
+  const hint = wordData.meaning || wordData.hint || '';
+  const len  = word.length;
+
+  // 빈칸 개수: 서버가 지정했으면 그대로 사용, 아니면 로컬에서 3~6 중 랜덤 선택
+  // 규칙 — 3빈칸:1루타, 4빈칸:2루타, 5빈칸:3루타, 6빈칸:홈런(7초 이상 남았을 때만, 아니면 3루타)
+  const rawBlanks = wordData.blanks ?? (3 + Math.floor(Math.random() * 4));
+  const blanks    = Math.max(1, Math.min(rawBlanks, Math.max(1, len - 1)));
+  State.puzzleBlanks = blanks;
+
+  // 빈칸으로 남길 위치를 무작위로 선정
+  const blankPositions = new Set(
+    Array.from({ length: len }, (_, i) => i)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, blanks)
+  );
+
+  // 단어 철자 + 오답 보기 글자를 한 번에 섞어 보기 팔레트 구성
+  const decoyCount = blanks <= 4 ? 1 : 2;
+  const decoys     = _decoyLetters(word, decoyCount);
+  const combined = [
+    ...word.split('').map((l, i) => ({ l, srcIdx: i, decoy: false })),
+    ...decoys.map(l => ({ l, srcIdx: -1, decoy: true })),
+  ].sort(() => Math.random() - 0.5);
 
   State.puzzleWord     = word;
-  State.puzzleTiles    = shuffled.map(s => ({ letter: s.l, srcIdx: s.i, used: false, prefilled: false }));
-  State.answerIndices  = new Array(word.length).fill(null);
+  State.puzzleTiles    = combined.map(s => ({ letter: s.l, srcIdx: s.srcIdx, used: false, prefilled: false, decoy: s.decoy }));
+  State.answerIndices  = new Array(len).fill(null);
   State.lockedSlots    = new Set();
   State.prefilledSlots = new Set();
+  State.fillOrder       = [];
 
   document.getElementById('puzzle-hint-text').textContent = hint;
 
-  // 힌트 배치: 타석 모드는 매 문제 랜덤(0=없음, 1=첫글자, 2=양끝), 나머지는 난이도 고정
-  const _isCpu = State.gameMode === 'cpu';
-  const hintMode = _isCpu
-    ? Math.floor(Math.random() * 3)
-    : (wordData.difficulty === 1 ? 2 : wordData.difficulty === 2 ? 1 : 0);
-  console.log(`[buildPuzzle] gameMode=${State.gameMode} | answerLang=${State.answerLang} | word=${word} | diff=${wordData.difficulty} | hintMode=${hintMode} (${['없음','첫글자','양끝'][hintMode]})`);
-  if (hintMode >= 1) _prefillSlot(0);
-  if (hintMode >= 2) _prefillSlot(word.length - 1);
+  // 빈칸이 아닌 자리는 정답 글자를 미리 보여준다
+  for (let i = 0; i < len; i++) {
+    if (!blankPositions.has(i)) _prefillSlot(i);
+  }
 
-  // 타일 렌더 (prefilled 타일은 타일 영역에서 제거)
+  // 보기 글자 렌더 (미리 보여준 자리에 쓰인 타일은 숨김)
   const tilesEl = document.getElementById('letter-tiles');
   tilesEl.innerHTML = '';
   State.puzzleTiles.forEach((t, ti) => {
@@ -2390,7 +2440,7 @@ function buildPuzzle(wordData) {
   // 슬롯 렌더
   const slotsEl = document.getElementById('answer-slots');
   slotsEl.innerHTML = '';
-  for (let i = 0; i < word.length; i++) {
+  for (let i = 0; i < len; i++) {
     const slot = document.createElement('div');
     slot.className = 'answer-slot';
     slot.dataset.si = i;
@@ -2416,7 +2466,9 @@ function selectTile(ti) {
   if (nextEmpty === -1) return;
   State.puzzleTiles[ti].used = true;
   State.answerIndices[nextEmpty] = ti;
+  State.fillOrder.push(nextEmpty);
   refreshPuzzleUI();
+  _checkPuzzleComplete();
 }
 
 function clearSlot(si) {
@@ -2425,6 +2477,7 @@ function clearSlot(si) {
   if (ti === null) return;
   State.puzzleTiles[ti].used = false;
   State.answerIndices[si] = null;
+  State.fillOrder = (State.fillOrder ?? []).filter(x => x !== si);
   refreshPuzzleUI();
 }
 
@@ -2451,12 +2504,13 @@ function refreshPuzzleUI() {
   });
 }
 
+/* 지우기 버튼 — 잘못 채운 마지막 빈칸을 취소 */
 function clearPuzzle() {
-  State.answerIndices.forEach((ti, si) => {
-    if (State.lockedSlots?.has(si) || State.prefilledSlots?.has(si)) return;
-    if (ti !== null) State.puzzleTiles[ti].used = false;
-    State.answerIndices[si] = null;
-  });
+  if (!State.fillOrder?.length) return;
+  const si = State.fillOrder.pop();
+  const ti = State.answerIndices[si];
+  if (ti !== null) State.puzzleTiles[ti].used = false;
+  State.answerIndices[si] = null;
   refreshPuzzleUI();
 }
 
@@ -2563,30 +2617,12 @@ async function fetchLocalWord(difficulty) {
   }
 }
 
-function _localHitType() {
-  const wLen = State.puzzleWord?.length ?? 1;
-  const pfx  = State.prefilledSlots ?? new Set();
-  const lck  = State.lockedSlots    ?? new Set();
-  const firstKnown = pfx.has(0) || lck.has(0);
-  const lastKnown  = pfx.has(wLen - 1) || lck.has(wLen - 1);
-  console.log(`[_localHitType] pfx=[${[...pfx]}] lck=[${[...lck]}] firstKnown=${firstKnown} lastKnown=${lastKnown} timerSec=${_timerSec}`);
-  // 양끝 모두 알고 있으면 1루타, 첫글자만 알거나 아이템 사용 시 2루타
-  if (firstKnown && lastKnown) return 'single';
-  if (firstKnown || lck.size > 0) return 'double';
-  // 힌트 없이 맞춘 경우: 7초 이상 남으면 홈런, 미만이면 3루타
-  return _timerSec >= 7 ? 'homerun' : 'triple';
-}
-
-function _practiceHitType() {
-  // 연습 모드용 타격 판정 (타이머 없으므로 홈런 제외)
-  const wLen = State.puzzleWord?.length ?? 1;
-  const pfx  = State.prefilledSlots ?? new Set();
-  const lck  = State.lockedSlots    ?? new Set();
-  const firstKnown = pfx.has(0) || lck.has(0);
-  const lastKnown  = pfx.has(wLen - 1) || lck.has(wLen - 1);
-  if (firstKnown && lastKnown) return 'single'; // 첫글자+마지막글자 힌트 → 1루타
-  if (firstKnown || lck.size > 0) return 'double'; // 첫글자만 힌트 → 2루타
-  return 'triple'; // 힌트 없이 맞춤 → 3루타 (홈런 없음)
+/* 빈칸 개수 → 타격 결과. 6빈칸(홈런 후보)은 7초 이상 남았을 때만 홈런, 아니면 3루타. */
+function _hitTypeForBlanks(blanks, timeLeft) {
+  if (blanks <= 3) return 'single';
+  if (blanks === 4) return 'double';
+  if (blanks === 5) return 'triple';
+  return (timeLeft != null && timeLeft >= 7) ? 'homerun' : 'triple';
 }
 
 /* ── 로컬 정답 처리 ──────────────────────────────────── */
@@ -2682,9 +2718,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
   hide('puzzle-panel');
   let result;
   if (correct) {
-    console.log(`[hitType] pfx=[${[...State.prefilledSlots]}] lck=[${[...State.lockedSlots]}] timerSec=${_timerSec} word=${word.word}`);
-    const hitType = _localHitType();
-    console.log(`[hitType] → ${hitType}`);
+    const hitType = _hitTypeForBlanks(State.puzzleBlanks, _timerSec);
     result = LocalGame.hit(hitType);
     const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
     toast(`${labels[hitType]}  +${result.runs}점`, '#f0883e');
@@ -2796,7 +2830,7 @@ function _handlePracticeAnswer(correct, word) {
   const s = State.practiceStats;
   if (correct) {
     s.correct++;
-    const hitType = _practiceHitType();
+    const hitType = _hitTypeForBlanks(State.puzzleBlanks, null); // 연습 모드는 타이머 없음 → 홈런 제외
     const result  = LocalGame.hit(hitType);
     const labels  = { single:'1루타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨' };
     toast(`${labels[hitType]}  ${word.word}`, '#f0883e');
