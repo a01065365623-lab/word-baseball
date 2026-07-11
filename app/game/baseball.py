@@ -62,20 +62,6 @@ class GameState:
         result.update({"game_over": self.game_over, "winner": self.winner})
         return result
 
-    def ball(self) -> dict:
-        """볼 처리. 4 볼 시 볼넷(1루 진루)."""
-        self.balls += 1
-        result: dict = {"event": "ball", "balls": self.balls}
-        if self.balls >= 4:
-            runs = self._walk()
-            self._reset_count()
-            result["walk"] = True
-            result["runs"] = runs
-            result["bases"] = list(self.bases)
-            result["score"] = dict(self.score)
-        result.update({"game_over": self.game_over, "winner": self.winner})
-        return result
-
     def to_dict(self) -> dict:
         return {
             "inning": self.inning,
@@ -107,26 +93,6 @@ class GameState:
                 new_bases[new_pos] = True
 
         self.bases = new_bases
-        self.score[self.half] += runs
-        return runs
-
-    def _walk(self) -> int:
-        """볼넷: 타자 1루. 만루 시 강제 진루로 득점 발생."""
-        runs = 0
-        b = list(self.bases)
-
-        if b[0] and b[1] and b[2]:   # 만루
-            runs = 1
-            # 모든 루에 주자 유지 (3루 주자 홈인)
-            b = [True, True, True]
-        elif b[0] and b[1]:          # 1·2루
-            b[2] = True              # 2루 → 3루, 1루 → 2루, 타자 → 1루
-        elif b[0]:                   # 1루만
-            b[1] = True              # 1루 → 2루, 타자 → 1루
-        else:
-            b[0] = True              # 타자 → 1루
-
-        self.bases = b
         self.score[self.half] += runs
         return runs
 

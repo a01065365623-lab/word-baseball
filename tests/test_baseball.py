@@ -89,26 +89,6 @@ def test_double_advances_two():
     assert g.bases[1] is True        # 타자 → 2루
 
 
-# ── 볼넷 ──────────────────────────────────────────────────────────────────────
-
-def test_four_balls_walk():
-    g = make_game()
-    g.ball(); g.ball(); g.ball()
-    result = g.ball()
-    assert result["walk"] is True
-    assert g.bases[0] is True
-    assert g.balls == 0   # 카운트 리셋
-
-
-def test_walk_with_loaded_bases_scores():
-    g = make_game()
-    g.bases = [True, True, True]
-    result = g.ball(); g.ball(); g.ball()
-    result = g.ball()
-    assert result["runs"] == 1
-    assert g.score["top"] == 1
-
-
 # ── 게임 종료 ─────────────────────────────────────────────────────────────────
 
 def test_game_ends_after_max_innings():

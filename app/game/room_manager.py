@@ -23,7 +23,7 @@ class RoomManager:
 
     # ── 룸 생성 / 참가 ─────────────────────────────────────────────────────────
 
-    def create_room(self, host_sid: str, username: str) -> str:
+    def create_room(self, host_sid: str, username: str, innings: int = 9) -> str:
         """새 룸 생성. 생성된 룸 코드 반환."""
         code = self._unique_code()
         self._rooms[code] = {
@@ -31,6 +31,7 @@ class RoomManager:
             "game": None,
             "current_word": None,
             "ready_set": set(),
+            "innings": innings,
         }
         return code
 
@@ -45,8 +46,10 @@ class RoomManager:
         return True
 
     def leave_room(self, sid: str) -> Optional[str]:
-        """플레이어 퇴장. 룸 코드 반환 (없으면 None)."""
+        """플레이어 퇴장. sid가 속한 룸 코드 반환 (없으면 None)."""
         for code, room in list(self._rooms.items()):
+            if not any(p["sid"] == sid for p in room["players"]):
+                continue
             room["players"] = [p for p in room["players"] if p["sid"] != sid]
             room["ready_set"].discard(sid)
             if not room["players"]:
@@ -68,7 +71,7 @@ class RoomManager:
         """게임 상태 초기화."""
         room = self._rooms.get(code)
         if room:
-            room["game"] = GameState()
+            room["game"] = GameState(max_innings=room.get("innings", 9))
             room["ready_set"] = set()
 
     def set_current_word(self, code: str, word: dict):

@@ -1141,6 +1141,20 @@
         </div>
       </div>
 
+      <!-- PVP 방 코드로 참가 -->
+      <div id="pvp-join-section" class="hidden" style="margin-bottom:12px;">
+        <div class="lobby-section-label">방 코드로 참가</div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="pvp-join-code-input" placeholder="방 코드 입력" maxlength="6"
+                 style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.10);
+                        border:1px solid rgba(180,230,245,0.45);border-radius:10px;
+                        color:#ffffff;font-size:13px;font-family:'Inter',sans-serif;
+                        text-transform:uppercase;outline:none;" />
+          <button class="btn btn-login-main" id="btn-join-room"
+                  style="width:auto;padding:10px 18px;font-size:13px;">참가</button>
+        </div>
+      </div>
+
       <!-- 게임 시작 -->
       <button class="btn btn-login-main" id="btn-start-game" style="font-size:15px;padding:13px;">⚾ 게임 시작</button>
 
@@ -1502,6 +1516,7 @@ const socket = io({ autoConnect: true });
 const State = {
   username: null, roomCode: null, myTeam: null,
   players: [], currentWord: null, gameState: null,
+  waitingTimer: null,
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -1959,12 +1974,25 @@ function goLobby() {
   document.getElementById('lobby-nickname').textContent = State.username || '플레이어';
   document.getElementById('lobby-coins').textContent = (State.coins ?? 0).toLocaleString();
 }
+function _clearWaitingTimer() {
+  if (State.waitingTimer) { clearTimeout(State.waitingTimer); State.waitingTimer = null; }
+}
 function goWaiting(code) {
   State.roomCode = code;
   document.getElementById('room-code-display').textContent = code;
   hideAll();
   show('waiting-panel');
   _bgSwitch('lobby');
+  // 30초 안에 상대가 들어오지 않으면 AI 대결로 자동 전환
+  _clearWaitingTimer();
+  State.waitingTimer = setTimeout(() => {
+    if (State.players.length < 2) {
+      socket.emit('action:leave_room', {});
+      State.roomCode = null;
+      toast('상대를 찾지 못했습니다. AI와 대결합니다!', '#fbbf24');
+      startCpuGame();
+    }
+  }, 30000);
   // 내 슬롯 초기화
   document.getElementById('slot-me-name').textContent = State.username || '나';
   document.getElementById('slot-me-status').className  = 'slot-status waiting';
@@ -2977,6 +3005,9 @@ document.querySelectorAll('.game-mode-btn').forEach(btn => {
     document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     State.selectedMode = btn.dataset.mode;
+    const isPvp = State.selectedMode === 'pvp';
+    document.getElementById('pvp-join-section').classList.toggle('hidden', !isPvp);
+    document.getElementById('btn-start-game').textContent = isPvp ? '🏠 방 만들기' : '⚾ 게임 시작';
   };
 });
 
@@ -3070,6 +3101,14 @@ document.getElementById('btn-settings-save').onclick = () => {
 });
 
 function joinRoomByCode(code) { socket.emit('action:join_room', { code, username: State.username }); }
+document.getElementById('btn-join-room').onclick = () => {
+  const code = document.getElementById('pvp-join-code-input').value.trim().toUpperCase();
+  if (!code) { toast('방 코드를 입력하세요', '#f85149'); return; }
+  joinRoomByCode(code);
+};
+document.getElementById('pvp-join-code-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-join-room').click();
+});
 document.getElementById('btn-ready').onclick = () => {
   socket.emit('action:ready', { hintLang: State.hintLang ?? 'ko', answerLang: State.answerLang ?? 'en' });
   document.getElementById('btn-ready').disabled = true;
@@ -3078,6 +3117,7 @@ document.getElementById('btn-ready').onclick = () => {
   document.getElementById('slot-me-status').textContent = '준비 완료 ✓';
 };
 document.getElementById('btn-leave').onclick = () => {
+  _clearWaitingTimer();
   socket.emit('action:leave_room', {}); State.roomCode = null; goLobby();
 };
 document.getElementById('btn-copy-code').onclick = () => {
@@ -3131,6 +3171,7 @@ document.getElementById('btn-to-lobby').onclick = () => {
     State.gameMode = null;
     goLobby();
   } else {
+    _clearWaitingTimer();
     socket.emit('action:leave_room', {}); State.roomCode = null; goLobby();
   }
 };
@@ -3146,7 +3187,7 @@ document.getElementById('btn-to-lobby').onclick = () => {
 ═══════════════════════════════════════════════════════ */
 socket.on('connect', () => console.log('소켓 연결:', socket.id));
 socket.on('state:room_created', data => { State.roomCode = data.code; goWaiting(data.code); });
-socket.on('state:room_joined',  data => { State.roomCode = data.code; });
+socket.on('state:room_joined',  data => { State.roomCode = data.code; goWaiting(data.code); });
 socket.on('state:room_update',  data => {
   const prev = State.players.length;
   State.players = data.players || [];
@@ -3166,6 +3207,7 @@ socket.on('state:room_update',  data => {
   const oppSlot   = document.getElementById('slot-opp');
   const oppStatus = document.getElementById('slot-opp-status');
   if (opp) {
+    _clearWaitingTimer();
     oppSlot.querySelector('.slot-name').textContent   = opp.username;
     oppSlot.querySelector('.slot-name').style.color   = '#ffffff';
     oppSlot.querySelector('.slot-avatar').style.opacity = '1';
@@ -3183,6 +3225,7 @@ socket.on('state:room_update',  data => {
 });
 socket.on('state:player_ready', data => toast(`${data.sid === socket.id ? '나' : '상대'} 준비 완료`));
 socket.on('state:game_start', data => {
+  _clearWaitingTimer();
   State.players = data.players || [];
   const me = State.players.find(p => p.sid === socket.id);
   if (me) State.myTeam = me.team;

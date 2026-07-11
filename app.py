@@ -153,6 +153,12 @@ from app.game.room_manager import room_manager   # noqa: E402  (pure Python, no 
 from app.game.baseball import GameState           # noqa: E402
 
 
+@app.route('/api/rooms/')
+def api_rooms():
+    """대기 중(1명, 게임 시작 전)인 룸 목록 반환."""
+    return jsonify({'rooms': room_manager.list_waiting_rooms()})
+
+
 def _offense_defense(code: str):
     """현재 이닝 half 기준으로 (offense_sid, defense_sid) 반환."""
     game    = room_manager.get_game(code)
@@ -218,7 +224,9 @@ def on_create_room(data):
     data     = data or {}
     username = data.get('username') or 'Guest'
     innings  = int(data.get('innings') or 9)
-    code     = room_manager.create_room(request.sid, username)
+    if innings < 1:
+        innings = 9
+    code     = room_manager.create_room(request.sid, username, innings)
     join_room(code)
     emit('state:room_created', {'code': code, 'username': username})
     emit('state:room_update',  {'code': code, 'players': room_manager.get_players(code)}, to=code)
