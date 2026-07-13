@@ -2403,7 +2403,7 @@ function buildPuzzle(wordData) {
   );
 
   // 단어 철자 + 오답 보기 글자를 한 번에 섞어 보기 팔레트 구성
-  const decoyCount = blanks <= 4 ? 1 : 2;
+  const decoyCount = 2 + Math.floor(Math.random() * 2); // 오답 철자 2~3개
   const decoys     = _decoyLetters(word, decoyCount);
   const combined = [
     ...word.split('').map((l, i) => ({ l, srcIdx: i, decoy: false })),

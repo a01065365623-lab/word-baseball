@@ -52,6 +52,10 @@ def _db_word(difficulty: int, hint_lang: str = 'ko', answer_lang: str = 'en') ->
         row = conn.execute(
             f'SELECT {answer_lang}, {effective_hint}, level FROM vocabulary'
             f' WHERE level = ? AND {answer_lang} IS NOT NULL AND {answer_lang} != ""'
+            '   AND LENGTH(en) BETWEEN 3 AND 20'
+            "   AND en NOT LIKE '% %'"
+            "   AND en NOT LIKE '%-%'"
+            "   AND en NOT GLOB '*[^A-Za-z]*'"
             ' ORDER BY RANDOM() LIMIT 1',
             (difficulty,)
         ).fetchone()
