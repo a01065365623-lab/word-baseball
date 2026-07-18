@@ -615,7 +615,6 @@
     /* 탭 아이콘 개별 색상 */
     #nav-ranking  .nav-icon { color: #FFB347; text-shadow: 0 0 8px rgba(255,179,71,0.6); }
     #nav-shop     .nav-icon { color: #87CEEB; text-shadow: 0 0 8px rgba(135,206,235,0.6); }
-    #nav-friends  .nav-icon { color: #98FB98; text-shadow: 0 0 8px rgba(152,251,152,0.6); }
     #nav-ads      .nav-icon { color: #DDA0DD; text-shadow: 0 0 8px rgba(221,160,221,0.6); }
 
     /* ══ 게임 HUD (압축형, 50px) ═══════════════════════════ */
@@ -1149,9 +1148,6 @@
         </button>
         <button class="nav-tab" id="nav-shop">
           <span class="nav-icon">🛒</span>상점
-        </button>
-        <button class="nav-tab" id="nav-friends">
-          <span class="nav-icon">👥</span>친구방
         </button>
         <button class="nav-tab" id="nav-ads">
           <span class="nav-icon">📢</span>광고방
@@ -2714,28 +2710,35 @@ function _aiAttackTurn() {
   updateScoreboard(LocalGame.toHUD());
   toast('🤖 AI 공격 중…', '#c084fc');
 
+  const decideDelay = 2000 + Math.random() * 3000; // 2~5초 후 결과 발표
   setTimeout(() => {
-    const prevInning = LocalGame.inning;
-    if (Math.random() < successRate) {
-      const result = LocalGame.hit(hitType);
-      updateHUD(LocalGame.toHUD());
-      updateScoreboard(LocalGame.toHUD());
-      toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
-      showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
-      if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
-    } else {
-      const result      = LocalGame.strike();
-      const isThirdOut  = result.out && LocalGame.outs === 0;
-      const displayOuts = isThirdOut ? 3 : LocalGame.outs;
-      updateHUD(LocalGame.toHUD());
-      updateScoreboard(LocalGame.toHUD());
-      toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
-      if (isThirdOut && !LocalGame.gameOver) {
-        setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
+    // 연출(세레모니 등)에서 오류가 나더라도 다음 턴 진행은 절대 멈추지 않는다.
+    try {
+      const prevInning = LocalGame.inning;
+      if (Math.random() < successRate) {
+        const result = LocalGame.hit(hitType);
+        updateHUD(LocalGame.toHUD());
+        updateScoreboard(LocalGame.toHUD());
+        toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
+        showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
+        if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
+      } else {
+        const result      = LocalGame.strike();
+        const isThirdOut  = result.out && LocalGame.outs === 0;
+        const displayOuts = isThirdOut ? 3 : LocalGame.outs;
+        updateHUD(LocalGame.toHUD());
+        updateScoreboard(LocalGame.toHUD());
+        toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
+        if (isThirdOut && !LocalGame.gameOver) {
+          setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
+        }
       }
+    } catch (e) {
+      console.error('[_aiAttackTurn] 연출 오류(무시하고 진행):', e);
+    } finally {
+      setTimeout(() => _afterCpuAnswer(), 3000);
     }
-    setTimeout(() => _afterCpuAnswer(), 3000);
-  }, 2000);
+  }, decideDelay);
 }
 
 function _handleCpuAnswer(correct, timedOut, word) {
@@ -2747,8 +2750,12 @@ function _handleCpuAnswer(correct, timedOut, word) {
     const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
     toast(`${labels[hitType]}  +${result.runs}점`, '#f0883e');
     showFeedText(`${labels[hitType]}  ${word.word}`, '#f0883e');
-    if (hitType === 'homerun') showHomerunCeremony();
-    else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
+    try {
+      if (hitType === 'homerun') showHomerunCeremony();
+      else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
+    } catch (e) {
+      console.error('[_handleCpuAnswer] 연출 오류(무시하고 진행):', e);
+    }
   } else {
     result            = LocalGame.strike();
     const isThirdOut  = result.out && LocalGame.outs === 0;
@@ -3141,7 +3148,7 @@ document.getElementById('btn-settings-save').onclick = () => {
 };
 
 /* ── 로비 하단 네비게이션 ─────────────────────────────── */
-['nav-ranking','nav-shop','nav-friends','nav-ads'].forEach(id => {
+['nav-ranking','nav-shop','nav-ads'].forEach(id => {
   document.getElementById(id).onclick = () => {
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(id).classList.add('active');
