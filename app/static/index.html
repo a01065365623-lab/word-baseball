@@ -1875,6 +1875,7 @@ function loadOrCreateIdentity() {
   }
   State.username = nickname;
   State.avatar   = avatar;
+  State.sfx      = localStorage.getItem('wb_sfx') || 'on';
 }
 function saveNickname(nickname) {
   State.username = nickname;
@@ -1913,6 +1914,35 @@ function speakWord(text, langCode) {
   utt.lang = langCode || 'en-US';
   utt.rate = 0.85;
   window.speechSynthesis.speak(utt);
+}
+
+/* ── 효과음 ────────────────────────────────────────────── */
+const SFX_FILES = {
+  hit:     '/sounds/hit.mp3',
+  homerun: '/sounds/homerun.mp3',
+  out:     '/sounds/out.mp3',
+  correct: '/sounds/correct.mp3',
+  crowd:   '/sounds/crowd.mp3',
+};
+const _sfxCache = {};
+function playSfx(name) {
+  if (State.sfx === 'off') return;
+  const src = SFX_FILES[name];
+  if (!src) return;
+  let audio = _sfxCache[name];
+  if (!audio) {
+    audio = new Audio(src);
+    _sfxCache[name] = audio;
+  }
+  try {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch (_) { /* 자동재생 정책 등으로 실패해도 게임 진행에는 영향 없음 */ }
+}
+/* 타격 결과(hitType) + 득점(runs)에 맞는 효과음 재생 */
+function playHitSfx(hitType, runs) {
+  playSfx(hitType === 'homerun' ? 'homerun' : 'hit');
+  if (runs > 0) playSfx('crowd');
 }
 
 let toastTimer = null;
@@ -2721,6 +2751,7 @@ function _aiAttackTurn() {
         updateScoreboard(LocalGame.toHUD());
         toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
         showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
+        playHitSfx(hitType, result.runs);
         if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
       } else {
         const result      = LocalGame.strike();
@@ -2729,6 +2760,7 @@ function _aiAttackTurn() {
         updateHUD(LocalGame.toHUD());
         updateScoreboard(LocalGame.toHUD());
         toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
+        playSfx('out');
         if (isThirdOut && !LocalGame.gameOver) {
           setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
         }
@@ -2750,6 +2782,8 @@ function _handleCpuAnswer(correct, timedOut, word) {
     const labels = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨', homerun:'홈런!! 🎉' };
     toast(`${labels[hitType]}  +${result.runs}점`, '#f0883e');
     showFeedText(`${labels[hitType]}  ${word.word}`, '#f0883e');
+    playSfx('correct');
+    playHitSfx(hitType, result.runs);
     try {
       if (hitType === 'homerun') showHomerunCeremony();
       else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
@@ -2763,6 +2797,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
     const displayOuts = isThirdOut ? 3 : LocalGame.outs;
     const outMsg      = result.out ? ` (${displayOuts}/3)` : '';
     toast(`아웃${outMsg}`, '#f85149');
+    playSfx('out');
     updateHUD(LocalGame.toHUD());
     updateScoreboard(LocalGame.toHUD());
     if (!timedOut) {
@@ -2866,6 +2901,8 @@ function _handlePracticeAnswer(correct, word) {
     const labels  = { single:'1루타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨' };
     toast(`${labels[hitType]}  ${word.word}`, '#f0883e');
     showFeedText(`${labels[hitType]}  ${word.word}`, '#f0883e');
+    playSfx('correct');
+    playHitSfx(hitType, result.runs);
     updateScoreboard(LocalGame.toHUD());
     if (result.runs > 0) showScoreCeremony(result.runs, 'top');
     speakWord(word.word, TTS_LANG[State.answerLang] ?? 'en-US');
@@ -2878,6 +2915,7 @@ function _handlePracticeAnswer(correct, word) {
     const isThirdOut = result.out && LocalGame.outs === 0;
     const displayOut = isThirdOut ? 3 : LocalGame.outs;
     toast(`아웃 (${displayOut}/3)`, '#f85149');
+    playSfx('out');
     _showCorrectAnswer(word.word);
     updateScoreboard(LocalGame.toHUD());
     if (LocalGame.gameOver) LocalGame.reset(99);
@@ -3131,6 +3169,7 @@ document.getElementById('btn-start-game').onclick = () => {
 /* ── 설정 모달 ─────────────────────────────────────────── */
 document.getElementById('btn-settings').onclick = () => {
   document.getElementById('settings-nickname').value = State.username || '';
+  document.getElementById('settings-sfx').value = State.sfx || 'on';
   show('settings-modal');
 };
 document.getElementById('btn-settings-close').onclick = () => hide('settings-modal');
@@ -3143,6 +3182,7 @@ document.getElementById('btn-settings-save').onclick = () => {
   saveNickname(nickname);
   State.language = document.getElementById('settings-language').value;
   State.sfx      = document.getElementById('settings-sfx').value;
+  localStorage.setItem('wb_sfx', State.sfx);
   hide('settings-modal');
   toast('설정이 저장되었습니다.', '#4ade80');
 };
@@ -3324,12 +3364,19 @@ socket.on('state:answer_result', data => {
     const lbl = labels[data.hit_type] || '히트!';
     toast(`${isMe ? '나' : '상대'}: ${lbl}  +${data.runs}점`, '#f0883e');
     showFeedText(`${lbl}  ${data.correct_answer}`, '#f0883e');
-    if (data.hit_type === 'homerun') showHomerunCeremony();
-    else if (data.runs > 0) showScoreCeremony(data.runs, State.myTeam);
+    playSfx('correct');
+    playHitSfx(data.hit_type, data.runs);
+    try {
+      if (data.hit_type === 'homerun') showHomerunCeremony();
+      else if (data.runs > 0) showScoreCeremony(data.runs, State.myTeam);
+    } catch (e) {
+      console.error('[state:answer_result] 연출 오류(무시하고 진행):', e);
+    }
   } else {
     const outMsg = data.out ? ` (${data.outs}/3)` : '';
     toast(`${isMe ? '나' : '상대'}: 아웃${outMsg}`, '#f85149');
     showFeedText(`✗ 정답: ${data.correct_answer}`, '#FFD700');
+    playSfx('out');
 
     // 공격팀 본인만 슬롯에 정답 2초 표시
     if (isMe && data.word) {
