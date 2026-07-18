@@ -23,7 +23,8 @@ class RoomManager:
 
     # ── 룸 생성 / 참가 ─────────────────────────────────────────────────────────
 
-    def create_room(self, host_sid: str, username: str, innings: int = 9) -> str:
+    def create_room(self, host_sid: str, username: str, innings: int = 9,
+                     hint_lang: str = "ko", answer_lang: str = "en") -> str:
         """새 룸 생성. 생성된 룸 코드 반환."""
         code = self._unique_code()
         self._rooms[code] = {
@@ -32,6 +33,8 @@ class RoomManager:
             "current_word": None,
             "ready_set": set(),
             "innings": innings,
+            "hint_lang": hint_lang,
+            "answer_lang": answer_lang,
         }
         return code
 
@@ -106,7 +109,13 @@ class RoomManager:
         for code, room in self._rooms.items():
             if len(room["players"]) == 1 and room["game"] is None:
                 host = room["players"][0]["username"]
-                result.append({"code": code, "host": host})
+                result.append({
+                    "code":        code,
+                    "host":        host,
+                    "hint_lang":   room.get("hint_lang", "ko"),
+                    "answer_lang": room.get("answer_lang", "en"),
+                    "innings":     room.get("innings", 9),
+                })
         return result
 
     # ── 내부 ──────────────────────────────────────────────────────────────────

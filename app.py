@@ -244,12 +244,14 @@ def on_disconnect():
 
 @socketio.on('action:create_room')
 def on_create_room(data):
-    data     = data or {}
-    username = data.get('username') or 'Guest'
-    innings  = int(data.get('innings') or 9)
+    data        = data or {}
+    username    = data.get('username') or 'Guest'
+    innings     = int(data.get('innings') or 9)
     if innings < 1:
         innings = 9
-    code     = room_manager.create_room(request.sid, username, innings)
+    hint_lang   = data.get('hintLang') or 'ko'
+    answer_lang = data.get('answerLang') or 'en'
+    code        = room_manager.create_room(request.sid, username, innings, hint_lang, answer_lang)
     join_room(code)
     emit('state:room_created', {'code': code, 'username': username})
     emit('state:room_update',  {'code': code, 'players': room_manager.get_players(code)}, to=code)
