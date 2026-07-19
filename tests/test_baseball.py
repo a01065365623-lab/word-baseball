@@ -35,6 +35,14 @@ def test_three_strikes_make_out():
     assert g.strikes == 0   # 카운트 리셋
 
 
+def test_strike_result_includes_score():
+    # hit()과 동일하게 score를 포함해야 프론트가 매 스트라이크마다
+    # 스코어보드를 안전하게 갱신할 수 있다
+    g = make_game()
+    result = g.strike()
+    assert result["score"] == {"top": 0, "bottom": 0}
+
+
 def test_three_outs_change_half():
     g = make_game()
     for _ in range(9):   # 3아웃 × 3 (스트라이크)

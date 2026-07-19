@@ -70,7 +70,11 @@ class GameState:
         if self.strikes >= 3:
             result["out"] = True
             result.update(self._record_out())
-        result.update({"game_over": self.game_over, "winner": self.winner})
+        result.update({
+            "score": dict(self.score),
+            "game_over": self.game_over,
+            "winner": self.winner,
+        })
         return result
 
     def to_dict(self) -> dict:
