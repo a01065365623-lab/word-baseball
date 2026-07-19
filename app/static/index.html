@@ -2434,7 +2434,9 @@ function _checkPuzzleComplete() {
 }
 
 /* ── 퍼즐 빌드 (빈칸 채우기 방식) ──────────────────────── */
-function buildPuzzle(wordData) {
+/* opts.interactive=false 면 AI 턴용 읽기 전용 연출(타일 클릭 불가, 타이머 없음)로 표시 */
+function buildPuzzle(wordData, opts = {}) {
+  const interactive = opts.interactive !== false;
   const word = (wordData.word || '').toLowerCase();
   const hint = wordData.meaning || wordData.hint || '';
   const len  = word.length;
@@ -2482,7 +2484,8 @@ function buildPuzzle(wordData) {
     btn.className = 'letter-tile';
     btn.textContent = t.letter;
     btn.dataset.ti = ti;
-    btn.onclick = () => selectTile(ti);
+    if (interactive) btn.onclick = () => selectTile(ti);
+    else btn.disabled = true;
     if (t.prefilled) btn.style.display = 'none';
     tilesEl.appendChild(btn);
   });
@@ -2494,11 +2497,24 @@ function buildPuzzle(wordData) {
     const slot = document.createElement('div');
     slot.className = 'answer-slot';
     slot.dataset.si = i;
-    slot.onclick = () => clearSlot(i);
+    if (interactive) slot.onclick = () => clearSlot(i);
     slotsEl.appendChild(slot);
   }
 
   refreshPuzzleUI();
+
+  if (!interactive) {
+    // AI 턴 — 읽기 전용 연출: 아이템/타이머 없이 퍼즐 화면만 표시
+    hide('item-bar');
+    hide('defense-panel'); hide('def-timer-wrap');
+    stopTimer();
+    const txt = document.getElementById('puzzle-timer-text');
+    txt.textContent = '🤖';
+    txt.className = 'inf';
+    show('puzzle-panel');
+    return;
+  }
+
   showOffenseView();
   if (State.gameMode === 'practice') {
     stopTimer();
@@ -2727,50 +2743,91 @@ async function _playerAttackTurn() {
   buildPuzzle(word);
 }
 
-/* AI 공격: 난이도별 확률로 루타/아웃 자동 결정 */
-function _aiAttackTurn() {
+/* AI 공격: 난이도별 확률로 루타/아웃 결정 + 단어 푸는 연출 표시 */
+async function _aiAttackTurn() {
   const diff        = State.selectedLeague ?? 1;
   const successRate = { 1:0.70, 2:0.50, 3:0.30 }[diff] ?? 0.50;
   const hitType     = { 1:'single', 2:'double', 3:'triple' }[diff] ?? 'single';
   const hitLabels   = { single:'안타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨' };
+  const succeeds    = Math.random() < successRate;
 
   setBgPlayerRole('pitcher');
-  hide('puzzle-panel'); hide('item-bar');
+  hide('item-bar');
   updateHUD(LocalGame.toHUD());
   updateScoreboard(LocalGame.toHUD());
-  toast('🤖 AI 공격 중…', '#c084fc');
+  toast('🤖 AI가 단어를 풀고 있습니다…', '#c084fc');
 
-  const decideDelay = 2000 + Math.random() * 3000; // 2~5초 후 결과 발표
-  setTimeout(() => {
-    // 연출(세레모니 등)에서 오류가 나더라도 다음 턴 진행은 절대 멈추지 않는다.
-    try {
-      const prevInning = LocalGame.inning;
-      if (Math.random() < successRate) {
-        const result = LocalGame.hit(hitType);
-        updateHUD(LocalGame.toHUD());
-        updateScoreboard(LocalGame.toHUD());
-        toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
-        showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
-        playHitSfx(hitType, result.runs);
-        if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
-      } else {
-        const result      = LocalGame.strike();
-        const isThirdOut  = result.out && LocalGame.outs === 0;
-        const displayOuts = isThirdOut ? 3 : LocalGame.outs;
-        updateHUD(LocalGame.toHUD());
-        updateScoreboard(LocalGame.toHUD());
-        toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
-        playSfx('out');
-        if (isThirdOut && !LocalGame.gameOver) {
-          setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
-        }
+  const word = await fetchLocalWord(diff);
+  if (!word) {
+    // 단어 로드 실패 시 연출 없이 바로 결과만 안내
+    setTimeout(() => _resolveAiAttack(succeeds, hitType, hitLabels, null), 1500);
+    return;
+  }
+  State.currentWord = word;
+  buildPuzzle(word, { interactive: false });
+  await _aiSolvePuzzle(succeeds);
+  setTimeout(() => _resolveAiAttack(succeeds, hitType, hitLabels, word), 600);
+}
+
+/* AI가 빈칸을 0.5초 간격으로 순서대로 채워나가는 연출.
+   성공 시 전부, 실패 시 일부만 채우다 멈춘다. */
+function _aiSolvePuzzle(succeeds) {
+  return new Promise(resolve => {
+    const blankSlots = State.answerIndices
+      .map((v, i) => (v === null ? i : -1))
+      .filter(i => i !== -1);
+    const fillCount = succeeds
+      ? blankSlots.length
+      : Math.min(blankSlots.length - 1, Math.max(0, Math.floor(blankSlots.length * (0.3 + Math.random() * 0.4))));
+
+    let step = 0;
+    function fillNext() {
+      if (step >= fillCount) { resolve(); return; }
+      const si = blankSlots[step];
+      const letter = State.puzzleWord[si];
+      const ti = State.puzzleTiles.findIndex(t => !t.used && !t.decoy && t.letter === letter);
+      if (ti !== -1) {
+        State.puzzleTiles[ti].used = true;
+        State.answerIndices[si] = ti;
+        refreshPuzzleUI();
       }
-    } catch (e) {
-      console.error('[_aiAttackTurn] 연출 오류(무시하고 진행):', e);
-    } finally {
-      setTimeout(() => _afterCpuAnswer(), 3000);
+      step++;
+      setTimeout(fillNext, 500);
     }
-  }, decideDelay);
+    fillNext();
+  });
+}
+
+/* AI 타석 결과 확정 — 결과 반영, 토스트/효과음/연출, 다음 턴으로 진행 */
+function _resolveAiAttack(succeeds, hitType, hitLabels, word) {
+  const prevInning = LocalGame.inning;
+  try {
+    if (succeeds) {
+      const result = LocalGame.hit(hitType);
+      updateHUD(LocalGame.toHUD());
+      updateScoreboard(LocalGame.toHUD());
+      toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
+      showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
+      playHitSfx(hitType, result.runs);
+      if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
+    } else {
+      if (word) _showCorrectAnswer(word.word);
+      const result      = LocalGame.strike();
+      const isThirdOut  = result.out && LocalGame.outs === 0;
+      const displayOuts = isThirdOut ? 3 : LocalGame.outs;
+      updateHUD(LocalGame.toHUD());
+      updateScoreboard(LocalGame.toHUD());
+      toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
+      playSfx('out');
+      if (isThirdOut && !LocalGame.gameOver) {
+        setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
+      }
+    }
+  } catch (e) {
+    console.error('[_resolveAiAttack] 연출 오류(무시하고 진행):', e);
+  } finally {
+    setTimeout(() => { hide('puzzle-panel'); _afterCpuAnswer(); }, 2000);
+  }
 }
 
 function _handleCpuAnswer(correct, timedOut, word) {
