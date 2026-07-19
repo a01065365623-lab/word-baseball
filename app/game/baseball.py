@@ -128,10 +128,11 @@ class GameState:
         self.bases = [False, False, False]
 
         if self.half == "top":
-            # 콜드게임: 마지막 이닝 초 종료 시점에 후공팀이 이미 앞서 있으면
-            # 후공 공격 없이 즉시 종료
+            # 콜드게임: 마지막 이닝 초 종료 시점에 선공팀이 앞서지 못하면
+            # (동점 포함) 후공 공격 없이 즉시 종료 — 선공이 진짜로 앞서 있을
+            # 때만 후공에게 역전 기회를 준다
             if (self.inning >= self.max_innings
-                    and self.score["bottom"] > self.score["top"]):
+                    and self.score["top"] <= self.score["bottom"]):
                 self.mercy = True
                 self._end_game()
                 return

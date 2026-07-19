@@ -2689,9 +2689,10 @@ const LocalGame = {
     this.outs = 0; this.strikes = 0; this.balls = 0;
     this.bases = [false,false,false];
     if (this.twoTeams && this.half === 'top') {
-      // 콜드게임: 마지막 이닝 초 종료 시점에 후공팀이 이미 앞서 있으면
-      // 후공 공격 없이 즉시 종료
-      if (this.inning >= this.maxInnings && this.score.bottom > this.score.top) {
+      // 콜드게임: 마지막 이닝 초 종료 시점에 선공팀이 앞서지 못하면
+      // (동점 포함) 후공 공격 없이 즉시 종료 — 선공이 진짜로 앞서 있을
+      // 때만 후공에게 역전 기회를 준다
+      if (this.inning >= this.maxInnings && this.score.top <= this.score.bottom) {
         this.gameOver = true;
         this.mercy    = true;
         return;
