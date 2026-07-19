@@ -151,10 +151,10 @@ def test_no_walkoff_when_tied_or_trailing():
     assert g.game_over is False
 
 
-# ── 콜드게임 (mercy — 마지막 이닝 초 종료 시 선공이 앞서지 못하면 즉시 종료) ───
-# 규칙: 마지막 이닝 초 종료 시점에 top(선공) > bottom(후공)일 때만 후공이
-# 역전을 노리며 공격을 이어간다. 동점이거나 후공이 이미 앞서 있으면(top<=bottom)
-# 후공 공격 없이 즉시 종료한다.
+# ── 콜드게임 (mercy — 마지막 이닝 초 종료 시 후공이 이미 앞서면 즉시 종료) ───
+# 규칙: 마지막 이닝 초 종료 시점에 bottom(후공) > top(선공)일 때만 역전이
+# 불가능하므로 즉시 종료한다. 동점이거나 선공이 앞서 있으면 후공은 반드시
+# 마지막 공격을 진행한다(동점 시에도 역전 기회를 줘야 함).
 
 def test_mercy_ends_game_when_bottom_already_leading():
     g = GameState(max_innings=2)
@@ -176,15 +176,14 @@ def test_mercy_ends_game_when_bottom_already_leading():
     assert g.outs == 0
 
 
-def test_mercy_ends_game_when_tied():
+def test_no_mercy_when_tied_bottom_must_play():
     g = GameState(max_innings=1)
     result = None
     for _ in range(9):
         result = g.strike()          # top of 1이닝 (0-0) 종료 — 동점
-    assert result["mercy"] is True
-    assert g.game_over is True
-    assert g.winner == "tie"
-    assert g.half == "top"           # 동점이어도 후공 공격은 진행되지 않음
+    assert result["mercy"] is False
+    assert g.game_over is False
+    assert g.half == "bottom"        # 동점이면 반드시 후공 공격을 진행해야 함
 
 
 def test_no_mercy_when_top_is_leading():
