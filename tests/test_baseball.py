@@ -108,3 +108,35 @@ def test_winner_determined():
     for _ in range(9): g.strike()   # top 3아웃
     for _ in range(9): g.strike()   # bottom 3아웃
     assert g.winner == "top"
+
+
+# ── 끝내기 (walk-off) ─────────────────────────────────────────────────────────
+
+def test_walkoff_ends_game_immediately():
+    g = GameState(max_innings=1)
+    g.hit(HOMERUN)                   # top 1점 (1-0)
+    for _ in range(9): g.strike()   # top 3아웃 → bottom of 1이닝
+    tie = g.hit(HOMERUN)             # bottom 동점 (1-1) — 아직 끝내기 아님
+    assert tie["walkoff"] is False
+    assert g.game_over is False
+    result = g.hit(HOMERUN)          # bottom 역전 (2-1) → 끝내기
+    assert result["walkoff"] is True
+    assert g.game_over is True
+    assert g.winner == "bottom"
+    assert g.outs == 0               # 3아웃을 기다리지 않고 즉시 종료
+
+
+def test_no_walkoff_when_not_last_inning():
+    g = GameState(max_innings=2)
+    for _ in range(9): g.strike()    # top of 1이닝 종료 (0-0)
+    result = g.hit(HOMERUN)          # bottom이 1점 앞서지만 마지막 이닝이 아님
+    assert result["walkoff"] is False
+    assert g.game_over is False
+
+
+def test_no_walkoff_when_tied_or_trailing():
+    g = GameState(max_innings=1)
+    for _ in range(9): g.strike()    # top of 1이닝 종료 (0-0)
+    result = g.hit(SINGLE)           # bottom 동점(0-0)에 불과, 역전 아님
+    assert result["walkoff"] is False
+    assert g.game_over is False

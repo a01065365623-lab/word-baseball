@@ -42,10 +42,20 @@ class GameState:
         advances = HIT_ADVANCES.get(hit_type, 1)
         runs = self._advance_runners(advances)
         self._reset_count()
+
+        # 끝내기: 마지막 이닝 말, 후공팀이 역전하면 3아웃을 기다리지 않고 즉시 종료
+        walkoff = False
+        if (not self.game_over and self.half == "bottom"
+                and self.inning >= self.max_innings
+                and self.score["bottom"] > self.score["top"]):
+            walkoff = True
+            self._end_game()
+
         return {
             "event": "hit",
             "hit_type": hit_type,
             "runs": runs,
+            "walkoff": walkoff,
             "bases": list(self.bases),
             "score": dict(self.score),
             "game_over": self.game_over,

@@ -980,15 +980,15 @@
     #practice-select-panel {
       top:90px; left:210px; width:380px;
     }
-    #cpu-select-panel {
+    #cpu-select-panel, #cpu-order-select-panel {
       top:90px; left:210px; width:380px;
     }
-    #cpu-select-panel h3 {
+    #cpu-select-panel h3, #cpu-order-select-panel h3 {
       font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
       color:#FFE566; text-shadow:0 0 14px rgba(255,220,80,0.55);
       margin-bottom:6px; text-align:center;
     }
-    #cpu-select-panel p {
+    #cpu-select-panel p, #cpu-order-select-panel p {
       font-size:13px; color:rgba(255,255,255,0.50); text-align:center; margin-bottom:18px;
     }
     #practice-select-panel h3 {
@@ -1015,6 +1015,11 @@
     .practice-diff-btn.hard.active   { background:rgba(239,68,68,0.45);  border:2px solid rgba(239,68,68,0.95);
                                        box-shadow:0 0 18px rgba(239,68,68,0.55); transform:translateY(-2px); }
     .practice-diff-btn .pdb-sub { font-size:11px; opacity:0.65; font-weight:400; }
+    .practice-diff-btn.order-top    { background:rgba(96,165,250,0.22);  color:#60a5fa; border:1px solid rgba(96,165,250,0.55); }
+    .practice-diff-btn.order-bottom { background:rgba(251,146,60,0.22);  color:#fb923c; border:1px solid rgba(251,146,60,0.55); }
+    .practice-diff-btn.order-top:hover, .practice-diff-btn.order-bottom:hover {
+      filter:brightness(1.25); transform:translateY(-2px);
+    }
 
     /* ══ 콜드게임 배너 ═════════════════════════════════════ */
     #cold-game-banner {
@@ -1346,8 +1351,23 @@
           <button class="mode-btn cpu-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
         </div>
       </div>
-      <button class="btn btn-login-main" id="btn-cpu-start" style="font-size:15px;padding:13px;margin-bottom:8px;">⚾ 게임 시작</button>
+      <button class="btn btn-login-main" id="btn-cpu-start" style="font-size:15px;padding:13px;margin-bottom:8px;">다음 →</button>
       <button class="btn-exit" id="btn-cpu-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
+    </div>
+
+    <!-- ══ 타석 모드 선공/후공 선택 ══════════════════════ -->
+    <div class="panel hidden" id="cpu-order-select-panel">
+      <h3>선공 / 후공</h3>
+      <p>어느 팀으로 플레이할지 선택하세요</p>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button class="practice-diff-btn order-top order-choice-btn" data-order="top">
+          <span>⚾ 선공</span><span class="pdb-sub">TOP</span>
+        </button>
+        <button class="practice-diff-btn order-bottom order-choice-btn" data-order="bottom">
+          <span>🏠 후공</span><span class="pdb-sub">BOTTOM</span>
+        </button>
+      </div>
+      <button class="btn-exit" id="btn-cpu-order-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 이전으로</button>
     </div>
 
     <!-- ══ 게임 HUD ══════════════════════════════════════ -->
@@ -1903,7 +1923,7 @@ function hide(id)  { document.getElementById(id).classList.add('hidden'); }
 function hideAll() {
   stopRoomListPolling();
   ['lobby-panel','settings-modal','waiting-panel',
-   'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel',
+   'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel','cpu-order-select-panel',
    'game-field','defense-panel','puzzle-panel','practice-next-bar',
    'item-bar','cold-game-banner','result-panel'].forEach(hide);
 }
@@ -2618,7 +2638,7 @@ const LocalGame = {
     Object.assign(this, {
       inning:1, half:'top', outs:0, strikes:0, balls:0,
       bases:[false,false,false], score:{ top:0, bottom:0 },
-      maxInnings, gameOver:false, twoTeams,
+      maxInnings, gameOver:false, twoTeams, walkoff:false,
     });
   },
 
@@ -2646,7 +2666,16 @@ const LocalGame = {
     this.bases = nb;
     this.score[this.half] += runs;
     this.strikes = 0; this.balls = 0;
-    return { event:'hit', hit_type:type, runs };
+
+    // 끝내기: 마지막 이닝 말, 후공팀이 역전하면 3아웃을 기다리지 않고 즉시 종료
+    let walkoff = false;
+    if (this.twoTeams && !this.gameOver && this.half === 'bottom'
+        && this.inning >= this.maxInnings && this.score.bottom > this.score.top) {
+      walkoff = true;
+      this.gameOver = true;
+      this.walkoff  = true;
+    }
+    return { event:'hit', hit_type:type, runs, walkoff };
   },
 
   strike() {
@@ -2717,13 +2746,15 @@ function _handleLocalAnswer(answer, timedOut) {
 
 /* ── CPU 모드 ─────────────────────────────────────────── */
 function startCpuGame() {
+  const myTeam = State.selectedBattingOrder === 'bottom' ? 'bottom' : 'top';
+  const aiTeam = myTeam === 'top' ? 'bottom' : 'top';
   LocalGame.reset(State.selectedInning ?? 2, true); // twoTeams=true
   State.gameMode = 'cpu';
   State.players  = [
-    { sid:'player', username: State.username || 'PLAYER', team:'top' },
-    { sid:'cpu',    username:'CPU', team:'bottom' },
+    { sid:'player', username: State.username || 'PLAYER', team: myTeam },
+    { sid:'cpu',    username:'CPU', team: aiTeam },
   ];
-  State.myTeam = 'top';
+  State.myTeam = myTeam;
   hideAll();
   show('game-hud'); show('game-field');
   _bgSwitch('game');
@@ -2735,7 +2766,7 @@ function startCpuGame() {
 
 async function _cpuNextTurn() {
   if (LocalGame.gameOver) { _endCpuGame(); return; }
-  if (LocalGame.half === 'top') {
+  if (LocalGame.half === State.myTeam) {
     await _playerAttackTurn();
   } else {
     _aiAttackTurn();
@@ -2811,6 +2842,7 @@ function _aiSolvePuzzle(succeeds) {
 /* AI 타석 결과 확정 — 결과 반영, 토스트/효과음/연출, 다음 턴으로 진행 */
 function _resolveAiAttack(succeeds, hitType, hitLabels) {
   const prevInning = LocalGame.inning;
+  const aiTeam     = State.myTeam === 'top' ? 'bottom' : 'top';
   try {
     if (succeeds) {
       const result = LocalGame.hit(hitType);
@@ -2819,7 +2851,11 @@ function _resolveAiAttack(succeeds, hitType, hitLabels) {
       toast(`🤖 AI ${hitLabels[hitType]}  +${result.runs}점`, '#c084fc');
       showFeedText(`🤖 AI ${hitLabels[hitType]}`, '#c084fc');
       playHitSfx(hitType, result.runs);
-      if (result.runs > 0) showScoreCeremony(result.runs, 'bottom');
+      if (result.runs > 0) showScoreCeremony(result.runs, aiTeam);
+      if (result.walkoff) {
+        toast('🤖 AI 끝내기!', '#FFD700');
+        showFeedText('🤖 AI 끝내기!', '#FFD700');
+      }
     } else {
       // 빈칸을 붉게 표시한 상태를 그대로 유지 — 전체 정답 공개로 덮어쓰지 않는다.
       const result      = LocalGame.strike();
@@ -2830,7 +2866,10 @@ function _resolveAiAttack(succeeds, hitType, hitLabels) {
       toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
       playSfx('out');
       if (isThirdOut && !LocalGame.gameOver) {
-        setTimeout(() => toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd'), 800);
+        const msg = LocalGame.inning !== prevInning
+          ? `⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`
+          : '⚾ 공수교대!';
+        setTimeout(() => toast(msg, '#93c5fd'), 800);
       }
     }
   } catch (e) {
@@ -2853,26 +2892,35 @@ function _handleCpuAnswer(correct, timedOut, word) {
     playHitSfx(hitType, result.runs);
     try {
       if (hitType === 'homerun') showHomerunCeremony();
-      else if (result.runs > 0) showScoreCeremony(result.runs, 'top');
+      else if (result.runs > 0) showScoreCeremony(result.runs, State.myTeam);
     } catch (e) {
       console.error('[_handleCpuAnswer] 연출 오류(무시하고 진행):', e);
     }
+    if (result.walkoff) {
+      toast('🎉 끝내기!', '#FFD700');
+      showFeedText('🎉 끝내기!', '#FFD700');
+    }
   } else {
+    const prevInning  = LocalGame.inning;
     result            = LocalGame.strike();
     const isThirdOut  = result.out && LocalGame.outs === 0;
-    const halfChanged = isThirdOut && !LocalGame.gameOver; // top half → bottom (AI 공격)
+    const halfChanged = isThirdOut && !LocalGame.gameOver; // 공수교대 (AI 공격 차례)
+    const newInning   = LocalGame.inning !== prevInning;
     const displayOuts = isThirdOut ? 3 : LocalGame.outs;
     const outMsg      = result.out ? ` (${displayOuts}/3)` : '';
     toast(`아웃${outMsg}`, '#f85149');
     playSfx('out');
     updateHUD(LocalGame.toHUD());
     updateScoreboard(LocalGame.toHUD());
+    const switchMsg = newInning
+      ? `⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작 (AI 공격!)`
+      : '⚾ 공수교대  →  AI 공격!';
     if (!timedOut) {
       _showCorrectAnswer(word.word);
       setTimeout(() => {
         hide('puzzle-panel');
         if (halfChanged) {
-          toast('⚾ 이닝 초 종료  →  AI 공격!', '#c084fc');
+          toast(switchMsg, '#c084fc');
           setTimeout(() => _afterCpuAnswer(), 1500);
         } else {
           _afterCpuAnswer();
@@ -2883,7 +2931,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
     showFeedText(`✗ 정답: ${word.word}`, '#FFD700');
     if (halfChanged) {
       setTimeout(() => {
-        toast('⚾ 이닝 초 종료  →  AI 공격!', '#c084fc');
+        toast(switchMsg, '#c084fc');
         setTimeout(() => _afterCpuAnswer(), 1500);
       }, 5000);
       return;
@@ -2900,13 +2948,15 @@ function _afterCpuAnswer() {
 }
 
 function _endCpuGame() {
-  const top    = LocalGame.score.top;
-  const bottom = LocalGame.score.bottom;
-  const winner = top > bottom ? 'top' : top < bottom ? 'bottom' : 'tie';
+  const top      = LocalGame.score.top;
+  const bottom   = LocalGame.score.bottom;
+  const winner   = top > bottom ? 'top' : top < bottom ? 'bottom' : 'tie';
+  const myScore  = State.myTeam === 'top' ? top : bottom;
   goResult({
-    score:  { top, bottom },
+    score:   { top, bottom },
     winner,
-    coin: top >= 10,
+    coin:    myScore >= 10,
+    walkoff: LocalGame.walkoff,
   });
 }
 
@@ -3005,8 +3055,17 @@ document.querySelectorAll('.cpu-inning-btn').forEach(btn => {
     State.selectedInning = parseInt(btn.dataset.inning);
   };
 });
-document.getElementById('btn-cpu-start').onclick = () => startCpuGame();
+document.getElementById('btn-cpu-start').onclick = () => { hideAll(); show('cpu-order-select-panel'); };
 document.getElementById('btn-cpu-back').onclick  = () => { hideAll(); show('lobby-panel'); };
+
+/* ── 타석 선공/후공 선택 ──────────────────────────────── */
+document.querySelectorAll('.order-choice-btn').forEach(btn => {
+  btn.onclick = () => {
+    State.selectedBattingOrder = btn.dataset.order;
+    startCpuGame();
+  };
+});
+document.getElementById('btn-cpu-order-back').onclick = () => { hideAll(); show('cpu-select-panel'); };
 
 /* ── 불펜 이닝 선택 ────────────────────────────────────── */
 document.querySelectorAll('.practice-inning-btn').forEach(btn => {
@@ -3064,7 +3123,11 @@ function goResult(data) {
   document.getElementById('result-bottom-name').textContent = bottomP?.username || 'BOTTOM';
   document.getElementById('result-top-score').textContent    = data.score?.top    ?? 0;
   document.getElementById('result-bottom-score').textContent = data.score?.bottom ?? 0;
-  const winMsg = data.winner === 'tie' ? '무승부!' : data.winner === State.myTeam ? '승리! 🎉' : '패배...';
+  const winMsg = data.winner === 'tie'
+    ? '무승부!'
+    : data.winner === State.myTeam
+      ? (data.walkoff ? '🎉 끝내기 승리! 🎉' : '승리! 🎉')
+      : (data.walkoff ? '끝내기패…' : '패배...');
   document.getElementById('winner-text').textContent = winMsg;
   const coinDiv = document.getElementById('coin-reward');
   if (data.coin) {
@@ -3438,6 +3501,10 @@ socket.on('state:answer_result', data => {
       else if (data.runs > 0) showScoreCeremony(data.runs, State.myTeam);
     } catch (e) {
       console.error('[state:answer_result] 연출 오류(무시하고 진행):', e);
+    }
+    if (data.walkoff) {
+      toast('🎉 끝내기!', '#FFD700');
+      showFeedText('🎉 끝내기!', '#FFD700');
     }
   } else {
     const outMsg = data.out ? ` (${data.outs}/3)` : '';

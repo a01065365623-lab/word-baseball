@@ -360,6 +360,7 @@ def on_answer(data):
             'score':   game.score,
             'winner':  game.winner,
             'players': room_manager.get_players(code),
+            'walkoff': result.get('walkoff', False),
         }, to=code)
     else:
         _emit_select_difficulty(code)
