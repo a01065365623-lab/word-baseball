@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import random
 
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -185,10 +184,25 @@ def _emit_select_difficulty(code: str):
     }, to=code)
 
 
-def _pick_blanks(word: str) -> int:
-    """빈칸 개수 3~6 중 무작위 선택 (단어 길이에 맞춰 클램프)."""
-    raw = random.randint(3, 6)
-    return max(1, min(raw, max(1, len(word) - 1)))
+def _hint_mode_for_difficulty(difficulty: int) -> int:
+    """리그(난이도) → 힌트 모드. AA(1)=2(첫/끝글자 힌트), 마이너(2)=1(첫글자만), 메이저(3)=0(힌트 없음)."""
+    return {1: 2, 2: 1, 3: 0}.get(difficulty, 2)
+
+
+# hintMode → 기본 빈칸 개수. hintMode 0(힌트 없음)의 6칸은 제출 시점 남은 시간에
+# 따라 홈런(7초 이상)/3루타(7초 미만)로 갈리므로 _hit_type_for_blanks에서 처리한다.
+_BLANKS_FOR_HINT_MODE = {2: 3, 1: 4, 0: 6}
+
+
+def _pick_blanks(word: str, difficulty: int) -> int:
+    """hintMode(난이도)에 따라 빈칸 개수를 결정한다. 단어 길이보다 빈칸이 많으면
+    전체를 빈칸으로 처리한다(clamp)."""
+    hint_mode = _hint_mode_for_difficulty(difficulty)
+    raw = _BLANKS_FOR_HINT_MODE.get(hint_mode, 3)
+    blanks = max(1, min(raw, len(word)))
+    print(f'[_pick_blanks] difficulty={difficulty} hintMode={hint_mode} '
+          f'word={word} rawBlanks={raw} finalBlanks={blanks}')
+    return blanks
 
 
 def _hit_type_for_blanks(blanks: int, time_left: int) -> str:
@@ -208,7 +222,7 @@ def _emit_new_word(code: str, difficulty: int, hint_lang: str = 'ko', answer_lan
     if not word:
         emit('state:error', {'message': '단어 데이터를 불러올 수 없습니다'}, to=code)
         return
-    word['blanks'] = _pick_blanks(word['word'])
+    word['blanks'] = _pick_blanks(word['word'], difficulty)
     room_manager.set_current_word(code, word)
     offense_sid, defense_sid = _offense_defense(code)
     emit('state:new_word', {
@@ -216,6 +230,7 @@ def _emit_new_word(code: str, difficulty: int, hint_lang: str = 'ko', answer_lan
         'meaning':      word['meaning'],    # 힌트 (hint_lang)
         'difficulty':   word['difficulty'],
         'blanks':       word['blanks'],
+        'hint_mode':    _hint_mode_for_difficulty(difficulty),
         'offense_sid':  offense_sid,
         'defense_sid':  defense_sid,
         'offense_team': room_manager.get_game(code).half,

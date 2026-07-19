@@ -2549,10 +2549,15 @@ function buildPuzzle(wordData, opts = {}) {
   const hint = wordData.meaning || wordData.hint || '';
   const len  = word.length;
 
-  // 빈칸 개수: 서버가 지정했으면 그대로 사용, 아니면 로컬에서 3~6 중 랜덤 선택
-  // 규칙 — 3빈칸:1루타, 4빈칸:2루타, 5빈칸:3루타, 6빈칸:홈런(7초 이상 남았을 때만, 아니면 3루타)
-  const rawBlanks = wordData.blanks ?? (3 + Math.floor(Math.random() * 4));
-  const blanks    = Math.max(1, Math.min(rawBlanks, Math.max(1, len - 1)));
+  // 빈칸 개수: 서버가 지정했으면 그대로 사용, 아니면 난이도(hintMode) 기준으로 결정
+  // 규칙 — hintMode 2(첫/끝글자):3빈칸→1루타, 1(첫글자):4빈칸→2루타,
+  //        0(힌트없음):6빈칸→7초 이상 남았을 때만 홈런, 아니면 3루타
+  const difficulty = wordData.difficulty ?? 1;
+  const hintMode    = wordData.hint_mode ?? _hintModeForDifficulty(difficulty);
+  const rawBlanks   = wordData.blanks ?? _pickBlanksForDifficulty(difficulty, len);
+  // 단어 길이보다 빈칸이 많으면 전체를 빈칸으로 처리한다(clamp)
+  const blanks      = Math.max(1, Math.min(rawBlanks, len));
+  console.log(`[buildPuzzle] hintMode=${hintMode} difficulty=${difficulty} word=${word}(len=${len}) rawBlanks=${rawBlanks} finalBlanks=${blanks}`);
   State.puzzleBlanks = blanks;
 
   // 빈칸으로 남길 위치를 무작위로 선정
@@ -2809,6 +2814,25 @@ async function fetchLocalWord(difficulty) {
     console.error('[fetchLocalWord] 오류:', e);
     return null;
   }
+}
+
+/* 리그(난이도) → 힌트 모드. AA(1)=2(첫/끝글자 힌트), 마이너(2)=1(첫글자만), 메이저(3)=0(힌트 없음). */
+function _hintModeForDifficulty(difficulty) {
+  return { 1: 2, 2: 1, 3: 0 }[difficulty] ?? 2;
+}
+
+/* hintMode → 기본 빈칸 개수. hintMode 0(힌트 없음)의 6칸은 제출 시점 남은 시간에
+   따라 홈런(7초 이상)/3루타(7초 미만)로 갈린다 — _hitTypeForBlanks 참고. */
+const _BLANKS_FOR_HINT_MODE = { 2: 3, 1: 4, 0: 6 };
+
+/* 난이도(hintMode) 기준으로 빈칸 개수를 결정. 단어 길이보다 빈칸이 많으면
+   전체를 빈칸으로 처리한다(clamp). */
+function _pickBlanksForDifficulty(difficulty, wordLen) {
+  const hintMode = _hintModeForDifficulty(difficulty);
+  const raw      = _BLANKS_FOR_HINT_MODE[hintMode] ?? 3;
+  const blanks   = Math.max(1, Math.min(raw, wordLen));
+  console.log(`[_pickBlanksForDifficulty] difficulty=${difficulty} hintMode=${hintMode} wordLen=${wordLen} rawBlanks=${raw} finalBlanks=${blanks}`);
+  return blanks;
 }
 
 /* 빈칸 개수 → 타격 결과. 6빈칸(홈런 후보)은 7초 이상 남았을 때만 홈런, 아니면 3루타. */
