@@ -268,19 +268,19 @@
 
     /* 로비 */
     #lobby-panel {
-      top: 55px; left: 210px; width: 380px;
+      top: 32px; left: 120px; width: 560px;
       max-width: calc(100% - 20px);
       position: absolute;
       background: rgba(10,20,50,0.92);
       border: 1px solid rgba(180,230,245,0.55);
-      border-radius: 20px;
-      padding: 26px 30px 24px;
+      border-radius: 24px;
+      padding: 38px 46px 34px;
       color: #f0faff;
       box-shadow: 0 24px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.20);
       animation: fadeUp 0.4s ease;
       overflow: hidden;
     }
-    #lobby-language, #lobby-answer-language {
+    .lang-select-row select {
       max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -335,6 +335,19 @@
       box-shadow: 0 0 14px rgba(91,191,181,0.40);
     }
     .mode-btn.active div:last-child { color: rgba(255,255,255,0.80) !important; }
+
+    /* 로비 게임 모드 버튼 — 크게 */
+    .game-mode-btn {
+      padding: 22px 12px;
+      border-radius: 16px;
+    }
+    .game-mode-btn > div:first-child {
+      font-size: 17px;
+      margin-bottom: 4px;
+    }
+    .game-mode-btn > div:last-child {
+      font-size: 11px !important;
+    }
 
     /* PVP 참가 탭 */
     .pvp-tab-btn {
@@ -440,8 +453,26 @@
       cursor: pointer;
     }
     .settings-select option { background: #1a3a50; }
-    #lobby-language option, #lobby-answer-language option { background: #1a3a50; }
-    #lobby-language:focus, #lobby-answer-language:focus { border-color: rgba(135,206,235,0.85); }
+
+    /* 힌트/정답 언어 선택 (타석·맞대결·불펜 각 화면에서 공용) */
+    .lang-select-row { display:flex; gap:8px; margin-bottom:18px; }
+    .lang-select-col { flex:1; min-width:0; }
+    .lang-select-wrap { position:relative; }
+    .lang-select-wrap select {
+      width:100%; padding:8px 24px 8px 10px;
+      background:rgba(255,255,255,0.18);
+      border:1px solid rgba(180,230,245,0.45);
+      border-radius:10px; color:#ffffff;
+      font-size:11px; font-family:'Inter',sans-serif;
+      outline:none; cursor:pointer; appearance:none; -webkit-appearance:none;
+      transition:border-color 0.15s;
+    }
+    .lang-select-wrap select option { background: #1a3a50; }
+    .lang-select-wrap select:focus { border-color: rgba(135,206,235,0.85); }
+    .lang-select-wrap .lang-select-arrow {
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      pointer-events:none; color:rgba(255,255,255,0.4); font-size:10px;
+    }
 
     /* 대기실 */
     #waiting-panel {
@@ -980,15 +1011,18 @@
     #practice-select-panel {
       top:90px; left:210px; width:380px;
     }
-    #cpu-select-panel, #cpu-order-select-panel {
+    #cpu-select-panel, #cpu-order-select-panel,
+    #pvp-select-panel, #pvp-room-panel {
       top:90px; left:210px; width:380px;
     }
-    #cpu-select-panel h3, #cpu-order-select-panel h3 {
+    #cpu-select-panel h3, #cpu-order-select-panel h3,
+    #pvp-select-panel h3, #pvp-room-panel h3 {
       font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
       color:#FFE566; text-shadow:0 0 14px rgba(255,220,80,0.55);
       margin-bottom:6px; text-align:center;
     }
-    #cpu-select-panel p, #cpu-order-select-panel p {
+    #cpu-select-panel p, #cpu-order-select-panel p,
+    #pvp-select-panel p, #pvp-room-panel p {
       font-size:13px; color:rgba(255,255,255,0.50); text-align:center; margin-bottom:18px;
     }
     #practice-select-panel h3 {
@@ -1059,98 +1093,27 @@
                 title="설정">⚙️</button>
       </div>
 
-      <!-- 힌트/정답 언어 선택 (가로 2열) -->
-      <div style="display:flex;gap:8px;margin-bottom:18px;">
-        <!-- 힌트 언어 -->
-        <div style="flex:1;min-width:0;">
-          <div class="lobby-section-label" style="margin-bottom:6px;">🌐 힌트</div>
-          <div style="position:relative;">
-            <select id="lobby-language"
-                    style="width:100%;padding:8px 24px 8px 10px;
-                           background:rgba(255,255,255,0.18);
-                           border:1px solid rgba(180,230,245,0.45);
-                           border-radius:10px;color:#ffffff;
-                           font-size:11px;font-family:'Inter',sans-serif;
-                           outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
-                           transition:border-color 0.15s;">
-              <!-- 옵션은 syncLangState()에서 동적으로 생성 -->
-            </select>
-            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-                         pointer-events:none;color:rgba(255,255,255,0.4);font-size:10px;">▼</span>
-          </div>
-        </div>
-        <!-- 정답 언어 -->
-        <div style="flex:1;min-width:0;">
-          <div class="lobby-section-label" style="margin-bottom:6px;">✏️ 정답</div>
-          <div style="position:relative;">
-            <select id="lobby-answer-language"
-                    style="width:100%;padding:8px 24px 8px 10px;
-                           background:rgba(255,255,255,0.18);
-                           border:1px solid rgba(180,230,245,0.45);
-                           border-radius:10px;color:#ffffff;
-                           font-size:11px;font-family:'Inter',sans-serif;
-                           outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
-                           transition:border-color 0.15s;">
-              <option value="en">🇺🇸 EN</option>
-              <option value="de">🇩🇪 DE</option>
-              <option value="fr">🇫🇷 FR</option>
-              <option value="es">🇪🇸 ES</option>
-              <option value="pt">🇧🇷 PT</option>
-              <option value="it">🇮🇹 IT</option>
-            </select>
-            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
-                         pointer-events:none;color:rgba(255,255,255,0.4);font-size:10px;">▼</span>
-          </div>
-        </div>
-      </div>
-
       <!-- 게임 모드 선택 -->
-      <div style="margin-bottom:24px;">
-        <div class="lobby-section-label">게임 모드</div>
-        <div style="display:flex;gap:8px;">
+      <div style="margin-bottom:32px;">
+        <div class="lobby-section-label" style="margin-bottom:10px;">게임 모드</div>
+        <div style="display:flex;gap:14px;">
           <button class="mode-btn game-mode-btn active" data-mode="cpu" style="flex:1;">
             <div>🤖 타석</div>
-            <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">공격만 진행<br>10점↑ 시 200코인</div>
+            <div style="font-weight:400;color:rgba(255,255,255,0.55);margin-top:5px;line-height:1.3;">공격만 진행<br>10점↑ 시 200코인</div>
           </button>
           <button class="mode-btn game-mode-btn" data-mode="pvp" style="flex:1;">
             <div>👥 맞대결</div>
-            <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">실시간 대전<br>승리 시 코인 획득</div>
+            <div style="font-weight:400;color:rgba(255,255,255,0.55);margin-top:5px;line-height:1.3;">실시간 대전<br>승리 시 코인 획득</div>
           </button>
           <button class="mode-btn game-mode-btn" data-mode="practice" style="flex:1;">
             <div>📚 불펜</div>
-            <div style="font-size:10px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;line-height:1.3;">점수 없음<br>단어 학습용</div>
+            <div style="font-weight:400;color:rgba(255,255,255,0.55);margin-top:5px;line-height:1.3;">점수 없음<br>단어 학습용</div>
           </button>
         </div>
       </div>
 
-      <!-- PVP 방 참가 -->
-      <div id="pvp-join-section" class="hidden" style="margin-bottom:12px;">
-        <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <button class="pvp-tab-btn active" id="pvp-tab-list-btn">방 목록</button>
-          <button class="pvp-tab-btn" id="pvp-tab-code-btn">코드 입력</button>
-        </div>
-
-        <!-- 방 목록 탭 -->
-        <div id="pvp-tab-list">
-          <div id="room-list" style="max-height:170px;overflow-y:auto;"></div>
-        </div>
-
-        <!-- 코드 입력 탭 -->
-        <div id="pvp-tab-code" class="hidden">
-          <div style="display:flex;gap:8px;">
-            <input type="text" id="pvp-join-code-input" placeholder="방 코드 입력" maxlength="6"
-                   style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.10);
-                          border:1px solid rgba(180,230,245,0.45);border-radius:10px;
-                          color:#ffffff;font-size:13px;font-family:'Inter',sans-serif;
-                          text-transform:uppercase;outline:none;" />
-            <button class="btn btn-login-main" id="btn-join-room"
-                    style="width:auto;padding:10px 18px;font-size:13px;">참가</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 게임 시작 -->
-      <button class="btn btn-login-main" id="btn-start-game" style="font-size:15px;padding:13px;">⚾ 게임 시작</button>
+      <!-- 다음 단계로 -->
+      <button class="btn btn-login-main" id="btn-start-game" style="font-size:16px;padding:16px;">다음 →</button>
 
       <!-- 하단 네비게이션 -->
       <nav class="lobby-bottom-nav">
@@ -1304,7 +1267,32 @@
     <!-- ══ 연습 모드 난이도 선택 ════════════════════════ -->
     <div class="panel hidden" id="practice-select-panel">
       <h3>불펜</h3>
-      <p>리그와 이닝을 선택하세요</p>
+      <p>언어·리그·이닝을 선택하세요</p>
+
+      <div class="lang-select-row">
+        <div class="lang-select-col">
+          <div class="lobby-section-label" style="margin-bottom:6px;">🌐 힌트</div>
+          <div class="lang-select-wrap">
+            <select id="practice-language"><!-- 옵션은 _setupLangPair()에서 동적으로 생성 --></select>
+            <span class="lang-select-arrow">▼</span>
+          </div>
+        </div>
+        <div class="lang-select-col">
+          <div class="lobby-section-label" style="margin-bottom:6px;">✏️ 정답</div>
+          <div class="lang-select-wrap">
+            <select id="practice-answer-language">
+              <option value="en">🇺🇸 EN</option>
+              <option value="de">🇩🇪 DE</option>
+              <option value="fr">🇫🇷 FR</option>
+              <option value="es">🇪🇸 ES</option>
+              <option value="pt">🇧🇷 PT</option>
+              <option value="it">🇮🇹 IT</option>
+            </select>
+            <span class="lang-select-arrow">▼</span>
+          </div>
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <button class="practice-diff-btn easy active" data-diff="1">
           <span>AA리그</span><span class="pdb-sub">4~5글자</span>
@@ -1358,7 +1346,32 @@
     <!-- ══ 타석 모드 선공/후공 선택 ══════════════════════ -->
     <div class="panel hidden" id="cpu-order-select-panel">
       <h3>선공 / 후공</h3>
-      <p>어느 팀으로 플레이할지 선택하세요</p>
+      <p>언어와 플레이할 팀을 선택하세요</p>
+
+      <div class="lang-select-row">
+        <div class="lang-select-col">
+          <div class="lobby-section-label" style="margin-bottom:6px;">🌐 힌트</div>
+          <div class="lang-select-wrap">
+            <select id="cpu-language"><!-- 옵션은 _setupLangPair()에서 동적으로 생성 --></select>
+            <span class="lang-select-arrow">▼</span>
+          </div>
+        </div>
+        <div class="lang-select-col">
+          <div class="lobby-section-label" style="margin-bottom:6px;">✏️ 정답</div>
+          <div class="lang-select-wrap">
+            <select id="cpu-answer-language">
+              <option value="en">🇺🇸 EN</option>
+              <option value="de">🇩🇪 DE</option>
+              <option value="fr">🇫🇷 FR</option>
+              <option value="es">🇪🇸 ES</option>
+              <option value="pt">🇧🇷 PT</option>
+              <option value="it">🇮🇹 IT</option>
+            </select>
+            <span class="lang-select-arrow">▼</span>
+          </div>
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;margin-bottom:20px;">
         <button class="practice-diff-btn order-top order-choice-btn" data-order="top">
           <span>⚾ 선공</span><span class="pdb-sub">TOP</span>
@@ -1368,6 +1381,73 @@
         </button>
       </div>
       <button class="btn-exit" id="btn-cpu-order-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 이전으로</button>
+    </div>
+
+    <!-- ══ 맞대결 언어 선택 ══════════════════════════════ -->
+    <div class="panel hidden" id="pvp-select-panel">
+      <h3>맞대결</h3>
+      <p>힌트/정답 언어를 선택하세요</p>
+
+      <div class="lang-select-row">
+        <div class="lang-select-col">
+          <div class="lobby-section-label" style="margin-bottom:6px;">🌐 힌트</div>
+          <div class="lang-select-wrap">
+            <select id="pvp-language"><!-- 옵션은 _setupLangPair()에서 동적으로 생성 --></select>
+            <span class="lang-select-arrow">▼</span>
+          </div>
+        </div>
+        <div class="lang-select-col">
+          <div class="lobby-section-label" style="margin-bottom:6px;">✏️ 정답</div>
+          <div class="lang-select-wrap">
+            <select id="pvp-answer-language">
+              <option value="en">🇺🇸 EN</option>
+              <option value="de">🇩🇪 DE</option>
+              <option value="fr">🇫🇷 FR</option>
+              <option value="es">🇪🇸 ES</option>
+              <option value="pt">🇧🇷 PT</option>
+              <option value="it">🇮🇹 IT</option>
+            </select>
+            <span class="lang-select-arrow">▼</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-login-main" id="btn-pvp-lang-next" style="font-size:15px;padding:13px;margin-bottom:8px;">다음 →</button>
+      <button class="btn-exit" id="btn-pvp-lang-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
+    </div>
+
+    <!-- ══ 맞대결 방 참가 ════════════════════════════════ -->
+    <div class="panel hidden" id="pvp-room-panel">
+      <h3>맞대결</h3>
+      <p>방을 만들거나 참가하세요</p>
+
+      <div id="pvp-join-section" style="margin-bottom:12px;">
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button class="pvp-tab-btn active" id="pvp-tab-list-btn">방 목록</button>
+          <button class="pvp-tab-btn" id="pvp-tab-code-btn">코드 입력</button>
+        </div>
+
+        <!-- 방 목록 탭 -->
+        <div id="pvp-tab-list">
+          <div id="room-list" style="max-height:170px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- 코드 입력 탭 -->
+        <div id="pvp-tab-code" class="hidden">
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="pvp-join-code-input" placeholder="방 코드 입력" maxlength="6"
+                   style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.10);
+                          border:1px solid rgba(180,230,245,0.45);border-radius:10px;
+                          color:#ffffff;font-size:13px;font-family:'Inter',sans-serif;
+                          text-transform:uppercase;outline:none;" />
+            <button class="btn btn-login-main" id="btn-join-room"
+                    style="width:auto;padding:10px 18px;font-size:13px;">참가</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-login-main" id="btn-pvp-create-room" style="font-size:15px;padding:13px;margin-bottom:8px;">🏠 방 만들기</button>
+      <button class="btn-exit" id="btn-pvp-room-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 이전으로</button>
     </div>
 
     <!-- ══ 게임 HUD ══════════════════════════════════════ -->
@@ -1924,6 +2004,7 @@ function hideAll() {
   stopRoomListPolling();
   ['lobby-panel','settings-modal','waiting-panel',
    'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel','cpu-order-select-panel',
+   'pvp-select-panel','pvp-room-panel',
    'game-field','defense-panel','puzzle-panel','practice-next-bar',
    'item-bar','cold-game-banner','result-panel'].forEach(hide);
 }
@@ -2050,7 +2131,6 @@ function goLobby() {
   document.getElementById('lobby-nickname').textContent = State.username || '플레이어';
   document.getElementById('lobby-coins').textContent = (State.coins ?? 0).toLocaleString();
   renderAvatar('lobby-avatar', State.avatar);
-  if (State.selectedMode === 'pvp') switchPvpTab(State.pvpTab || 'list');
 }
 function _clearWaitingTimer() {
   if (State.waitingTimer) { clearTimeout(State.waitingTimer); State.waitingTimer = null; }
@@ -2988,6 +3068,7 @@ function startCpuSelect() {
 function startPracticeSelect() {
   hideAll();
   show('practice-select-panel');
+  practiceLangPair.refresh();
 }
 
 function startPracticeGame(difficulty) {
@@ -3074,7 +3155,10 @@ document.querySelectorAll('.cpu-inning-btn').forEach(btn => {
     State.selectedInning = parseInt(btn.dataset.inning);
   };
 });
-document.getElementById('btn-cpu-start').onclick = () => { hideAll(); show('cpu-order-select-panel'); };
+document.getElementById('btn-cpu-start').onclick = () => {
+  hideAll(); show('cpu-order-select-panel');
+  cpuLangPair.refresh();
+};
 document.getElementById('btn-cpu-back').onclick  = () => { hideAll(); show('lobby-panel'); };
 
 /* ── 타석 선공/후공 선택 ──────────────────────────────── */
@@ -3259,17 +3343,12 @@ document.querySelectorAll('.game-mode-btn').forEach(btn => {
     document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     State.selectedMode = btn.dataset.mode;
-    const isPvp = State.selectedMode === 'pvp';
-    document.getElementById('pvp-join-section').classList.toggle('hidden', !isPvp);
-    document.getElementById('btn-start-game').textContent = isPvp ? '🏠 방 만들기' : '⚾ 게임 시작';
-    if (isPvp) switchPvpTab(State.pvpTab || 'list');
-    else stopRoomListPolling();
   };
 });
 document.getElementById('pvp-tab-list-btn').onclick = () => switchPvpTab('list');
 document.getElementById('pvp-tab-code-btn').onclick = () => switchPvpTab('code');
 
-/* ── 게임 시작 ─────────────────────────────────────────── */
+/* ── 힌트/정답 언어 선택 (타석·맞대결·불펜 화면 공용) ──── */
 const ALL_HINT_LANGS = [
   { value:'ko', label:'🇰🇷 KO' },
   { value:'en', label:'🇺🇸 EN' },
@@ -3291,54 +3370,79 @@ function langLabel(code) {
   return ALL_HINT_LANGS.find(l => l.value === code)?.label ?? (code || '').toUpperCase();
 }
 
-function syncLangState() {
-  const answerSel = document.getElementById('lobby-answer-language');
-  const hintSel   = document.getElementById('lobby-language');
-  const answerVal = answerSel.value;
-  const prevHint  = hintSel.value;
+/* 힌트/정답 select 한 쌍을 초기화 — 힌트 옵션 재구성 + change 리스너 연결.
+   State.hintLang/answerLang은 세 화면(타석/맞대결/불펜)이 공유하므로,
+   .refresh()를 호출하면 다른 화면에서 바뀐 값을 이 select 쌍에 반영한다. */
+function _setupLangPair(hintId, answerId) {
+  const hintSel   = document.getElementById(hintId);
+  const answerSel = document.getElementById(answerId);
 
-  // 힌트 옵션 재구성 — 정답 언어 제외
-  hintSel.innerHTML = '';
-  ALL_HINT_LANGS
-    .filter(l => l.value !== answerVal)
-    .forEach(l => {
-      const opt = document.createElement('option');
-      opt.value = l.value;
-      opt.textContent = l.label;
-      if (l.value === prevHint && l.value !== answerVal) opt.selected = true;
-      hintSel.appendChild(opt);
-    });
-
-  // 기존 선택이 제거된 경우 ko 기본값 (없으면 첫 번째)
-  if (!hintSel.value || hintSel.value === answerVal) {
-    const fallback = hintSel.querySelector('option[value="ko"]') || hintSel.querySelector('option');
-    if (fallback) hintSel.value = fallback.value;
+  function rebuildHintOptions() {
+    const answerVal = answerSel.value;
+    const prevHint  = hintSel.value || State.hintLang || 'ko';
+    hintSel.innerHTML = '';
+    ALL_HINT_LANGS
+      .filter(l => l.value !== answerVal)
+      .forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.value;
+        opt.textContent = l.label;
+        if (l.value === prevHint && l.value !== answerVal) opt.selected = true;
+        hintSel.appendChild(opt);
+      });
+    // 기존 선택이 제거된 경우 ko 기본값 (없으면 첫 번째)
+    if (!hintSel.value || hintSel.value === answerVal) {
+      const fallback = hintSel.querySelector('option[value="ko"]') || hintSel.querySelector('option');
+      if (fallback) hintSel.value = fallback.value;
+    }
+    State.answerLang = answerVal;
+    State.hintLang   = hintSel.value;
   }
 
-  State.answerLang = answerVal;
-  State.hintLang   = hintSel.value;
+  answerSel.addEventListener('change', rebuildHintOptions);
+  hintSel.addEventListener('change', () => { State.hintLang = hintSel.value; });
+
+  return {
+    refresh() {
+      answerSel.value = State.answerLang ?? 'en';
+      rebuildHintOptions();
+    },
+  };
 }
 
-document.getElementById('lobby-answer-language').addEventListener('change', syncLangState);
-document.getElementById('lobby-language').addEventListener('change', () => {
-  State.hintLang = document.getElementById('lobby-language').value;
-});
-syncLangState(); // 힌트 옵션 초기 빌드 (ALL_HINT_LANGS 정의 이후에 호출)
+const cpuLangPair      = _setupLangPair('cpu-language', 'cpu-answer-language');
+const pvpLangPair      = _setupLangPair('pvp-language', 'pvp-answer-language');
+const practiceLangPair = _setupLangPair('practice-language', 'practice-answer-language');
+cpuLangPair.refresh();
+pvpLangPair.refresh();
+practiceLangPair.refresh();
 
+/* ── 게임 시작 (로비 → 각 모드별 다음 화면) ────────────── */
 document.getElementById('btn-start-game').onclick = () => {
-  syncLangState();
   if (State.selectedMode === 'pvp') {
-    socket.emit('action:create_room', {
-      username:   State.username,
-      innings:    State.selectedInning,
-      hintLang:   State.hintLang   ?? 'ko',
-      answerLang: State.answerLang ?? 'en',
-    });
+    hideAll(); show('pvp-select-panel');
+    pvpLangPair.refresh();
   } else if (State.selectedMode === 'practice') {
     startPracticeSelect();
   } else {
     startCpuSelect();
   }
+};
+
+/* ── 맞대결: 언어 선택 → 방 참가 화면 ──────────────────── */
+document.getElementById('btn-pvp-lang-next').onclick = () => {
+  hideAll(); show('pvp-room-panel');
+  switchPvpTab(State.pvpTab || 'list');
+};
+document.getElementById('btn-pvp-lang-back').onclick = () => { hideAll(); show('lobby-panel'); };
+document.getElementById('btn-pvp-room-back').onclick = () => { hideAll(); show('pvp-select-panel'); };
+document.getElementById('btn-pvp-create-room').onclick = () => {
+  socket.emit('action:create_room', {
+    username:   State.username,
+    innings:    State.selectedInning,
+    hintLang:   State.hintLang   ?? 'ko',
+    answerLang: State.answerLang ?? 'en',
+  });
 };
 
 /* ── 설정 모달 ─────────────────────────────────────────── */
