@@ -3077,7 +3077,7 @@ document.querySelectorAll('.practice-inning-btn').forEach(btn => {
 });
 
 /* ── 리그 선택 (타석/불펜 공용) ──────────────────────── */
-document.querySelectorAll('.practice-diff-btn').forEach(btn => {
+document.querySelectorAll('.practice-diff-btn[data-diff]').forEach(btn => {
   btn.onclick = () => {
     const panel = btn.closest('.panel');
     panel?.querySelectorAll('.practice-diff-btn').forEach(b => b.classList.remove('active'));
