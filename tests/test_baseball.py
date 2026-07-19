@@ -140,3 +140,49 @@ def test_no_walkoff_when_tied_or_trailing():
     result = g.hit(SINGLE)           # bottom 동점(0-0)에 불과, 역전 아님
     assert result["walkoff"] is False
     assert g.game_over is False
+
+
+# ── 콜드게임 (mercy — 마지막 이닝 초 종료 시 후공 리드) ────────────────────────
+
+def test_mercy_ends_game_after_top_of_last_inning():
+    g = GameState(max_innings=2)
+    for _ in range(9): g.strike()    # top of 1이닝 종료 (0-0)
+    g.hit(HOMERUN)                    # bottom 1-0
+    g.hit(HOMERUN)                    # bottom 2-0
+    for _ in range(9): g.strike()    # bottom of 1이닝 종료 → 2이닝(마지막) top 시작
+    assert g.inning == 2
+    assert g.half == "top"
+    assert g.game_over is False
+
+    result = None
+    for _ in range(9):
+        result = g.strike()          # 2이닝(마지막) top 3아웃 — bottom이 이미 앞서 있음
+    assert result["mercy"] is True
+    assert g.game_over is True
+    assert g.winner == "bottom"
+    assert g.half == "top"           # bottom of 2이닝은 진행되지 않음
+    assert g.outs == 0
+
+
+def test_no_mercy_when_not_leading():
+    g = GameState(max_innings=1)
+    result = None
+    for _ in range(9):
+        result = g.strike()          # top of 1이닝 (0-0) 종료
+    assert result["mercy"] is False
+    assert g.game_over is False
+    assert g.half == "bottom"        # 정상적으로 후공 공격 진행
+
+
+def test_no_mercy_when_not_last_inning():
+    g = GameState(max_innings=2)
+    for _ in range(9): g.strike()    # top of 1이닝 종료 (0-0)
+    g.hit(HOMERUN)                    # bottom 1-0
+    g.hit(HOMERUN)                    # bottom 2-0
+    result = None
+    for _ in range(9):
+        result = g.strike()          # bottom of 1이닝 종료 → 2이닝 시작 (마지막 이닝 아님)
+    assert result["mercy"] is False
+    assert g.game_over is False
+    assert g.inning == 2
+    assert g.half == "top"

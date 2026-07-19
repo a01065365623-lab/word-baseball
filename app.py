@@ -361,6 +361,7 @@ def on_answer(data):
             'winner':  game.winner,
             'players': room_manager.get_players(code),
             'walkoff': result.get('walkoff', False),
+            'mercy':   result.get('mercy', False),
         }, to=code)
     else:
         _emit_select_difficulty(code)

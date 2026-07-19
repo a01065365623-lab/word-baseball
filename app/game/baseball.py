@@ -34,6 +34,7 @@ class GameState:
     score: dict = field(default_factory=lambda: {"top": 0, "bottom": 0})
     game_over: bool = False
     winner: Optional[str] = None   # 'top' | 'bottom' | 'tie'
+    mercy: bool = False            # 콜드게임(후공 조기 승리로 종료) 여부
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -117,6 +118,7 @@ class GameState:
         if self.outs >= 3:
             result["inning_change"] = True
             self._next_half_inning()
+            result["mercy"] = self.mercy
         return result
 
     def _next_half_inning(self):
@@ -126,6 +128,13 @@ class GameState:
         self.bases = [False, False, False]
 
         if self.half == "top":
+            # 콜드게임: 마지막 이닝 초 종료 시점에 후공팀이 이미 앞서 있으면
+            # 후공 공격 없이 즉시 종료
+            if (self.inning >= self.max_innings
+                    and self.score["bottom"] > self.score["top"]):
+                self.mercy = True
+                self._end_game()
+                return
             self.half = "bottom"
         else:
             self.half = "top"

@@ -2638,7 +2638,7 @@ const LocalGame = {
     Object.assign(this, {
       inning:1, half:'top', outs:0, strikes:0, balls:0,
       bases:[false,false,false], score:{ top:0, bottom:0 },
-      maxInnings, gameOver:false, twoTeams, walkoff:false,
+      maxInnings, gameOver:false, twoTeams, walkoff:false, mercy:false,
     });
   },
 
@@ -2689,6 +2689,13 @@ const LocalGame = {
     this.outs = 0; this.strikes = 0; this.balls = 0;
     this.bases = [false,false,false];
     if (this.twoTeams && this.half === 'top') {
+      // 콜드게임: 마지막 이닝 초 종료 시점에 후공팀이 이미 앞서 있으면
+      // 후공 공격 없이 즉시 종료
+      if (this.inning >= this.maxInnings && this.score.bottom > this.score.top) {
+        this.gameOver = true;
+        this.mercy    = true;
+        return;
+      }
       this.half = 'bottom';
     } else {
       this.half = 'top';
@@ -2865,7 +2872,10 @@ function _resolveAiAttack(succeeds, hitType, hitLabels) {
       updateScoreboard(LocalGame.toHUD());
       toast(`🤖 AI 아웃 (${displayOuts}/3)`, '#60a5fa');
       playSfx('out');
-      if (isThirdOut && !LocalGame.gameOver) {
+      if (LocalGame.mercy) {
+        toast('🏆 콜드게임! 경기 종료!', '#FFD700');
+        showFeedText('🏆 콜드게임!', '#FFD700');
+      } else if (isThirdOut && !LocalGame.gameOver) {
         const msg = LocalGame.inning !== prevInning
           ? `⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`
           : '⚾ 공수교대!';
@@ -2912,6 +2922,10 @@ function _handleCpuAnswer(correct, timedOut, word) {
     playSfx('out');
     updateHUD(LocalGame.toHUD());
     updateScoreboard(LocalGame.toHUD());
+    if (LocalGame.mercy) {
+      toast('🏆 콜드게임! 경기 종료!', '#FFD700');
+      showFeedText('🏆 콜드게임!', '#FFD700');
+    }
     const switchMsg = newInning
       ? `⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작 (AI 공격!)`
       : '⚾ 공수교대  →  AI 공격!';
@@ -2928,7 +2942,7 @@ function _handleCpuAnswer(correct, timedOut, word) {
       }, 5000);
       return;
     }
-    showFeedText(`✗ 정답: ${word.word}`, '#FFD700');
+    if (!LocalGame.mercy) showFeedText(`✗ 정답: ${word.word}`, '#FFD700');
     if (halfChanged) {
       setTimeout(() => {
         toast(switchMsg, '#c084fc');
@@ -2957,6 +2971,7 @@ function _endCpuGame() {
     winner,
     coin:    myScore >= 10,
     walkoff: LocalGame.walkoff,
+    mercy:   LocalGame.mercy,
   });
 }
 
@@ -3126,8 +3141,8 @@ function goResult(data) {
   const winMsg = data.winner === 'tie'
     ? '무승부!'
     : data.winner === State.myTeam
-      ? (data.walkoff ? '🎉 끝내기 승리! 🎉' : '승리! 🎉')
-      : (data.walkoff ? '끝내기패…' : '패배...');
+      ? (data.walkoff ? '🎉 끝내기 승리! 🎉' : data.mercy ? '🏆 콜드게임 승리!' : '승리! 🎉')
+      : (data.walkoff ? '끝내기패…' : data.mercy ? '콜드게임패…' : '패배...');
   document.getElementById('winner-text').textContent = winMsg;
   const coinDiv = document.getElementById('coin-reward');
   if (data.coin) {
@@ -3509,8 +3524,13 @@ socket.on('state:answer_result', data => {
   } else {
     const outMsg = data.out ? ` (${data.outs}/3)` : '';
     toast(`${isMe ? '나' : '상대'}: 아웃${outMsg}`, '#f85149');
-    showFeedText(`✗ 정답: ${data.correct_answer}`, '#FFD700');
     playSfx('out');
+    if (data.mercy) {
+      toast('🏆 콜드게임! 경기 종료!', '#FFD700');
+      showFeedText('🏆 콜드게임!', '#FFD700');
+    } else {
+      showFeedText(`✗ 정답: ${data.correct_answer}`, '#FFD700');
+    }
 
     // 공격팀 본인만 슬롯에 정답 2초 표시
     if (isMe && data.word) {
