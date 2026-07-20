@@ -979,8 +979,6 @@
     .ph-badge.easy   { background:rgba(34,197,94,0.20);  color:#4ade80; }
     .ph-badge.medium { background:rgba(251,191,36,0.20); color:#fbbf24; }
     .ph-badge.hard   { background:rgba(239,68,68,0.20);  color:#f87171; }
-    #practice-stats  { font-size:13px; color:rgba(255,255,255,0.65); }
-    #practice-stats span { font-weight:700; }
     /* 공용 나가기 버튼 스타일 */
     .btn-exit {
       background:#ff3333 !important;
@@ -1260,7 +1258,6 @@
     <!-- ══ 연습 모드 HUD ════════════════════════════════ -->
     <div id="practice-hud" class="hidden">
       <span id="practice-diff-badge" class="ph-badge easy">AA리그</span>
-      <span id="practice-stats">정답 <span id="ps-correct">0</span>  오답 <span id="ps-wrong">0</span></span>
       <button id="btn-practice-exit">← 나가기</button>
     </div>
 
@@ -2065,6 +2062,10 @@ function toast(msg, color = '#e6edf3') {
 function updateScoreboard(gs) {
   const bg = game.registry.get('bgScene');
   if (!bg) return;
+  // 연습 모드는 이닝/아웃 개념이 없으므로 해당 표시를 숨긴다
+  const isPractice = State.gameMode === 'practice';
+  bg.inningText?.setVisible(!isPractice);
+  bg.countText?.setVisible(!isPractice);
   if (!gs) {
     bg.scoreTextTop?.setText('0');
     bg.scoreTextBottom?.setText('0');
@@ -3098,7 +3099,7 @@ function startPracticeSelect() {
 function startPracticeGame(difficulty) {
   LocalGame.reset(99); // 사실상 무한 이닝
   State.gameMode = 'practice';
-  State.practiceStats = { correct:0, wrong:0, difficulty };
+  State.practiceDifficulty = difficulty;
   State.players = [
     { sid:'player', username: State.username || 'PLAYER', team:'top' },
     { sid:'pitcher', username:'불펜', team:'bottom' },
@@ -3113,30 +3114,22 @@ function startPracticeGame(difficulty) {
   const badge  = document.getElementById('practice-diff-badge');
   badge.textContent = labels[difficulty] || 'AA리그';
   badge.className   = `ph-badge ${cls[difficulty] || 'easy'}`;
-  _updatePracticeStats();
   updateScoreboard(LocalGame.toHUD());
   _practiceNextWord();
 }
 
-function _updatePracticeStats() {
-  const s = State.practiceStats;
-  document.getElementById('ps-correct').textContent = s.correct;
-  document.getElementById('ps-wrong').textContent   = s.wrong;
-}
-
 async function _practiceNextWord() {
   hide('practice-next-bar');
-  const word = await fetchLocalWord(State.practiceStats.difficulty);
+  const word = await fetchLocalWord(State.practiceDifficulty);
   if (!word) { toast('단어 데이터를 불러올 수 없습니다.', '#f87171'); return; }
   State.currentWord = word;
   buildPuzzle(word);
   speakWord(word.word, TTS_LANG[State.answerLang] ?? 'en-US');
 }
 
+/* 연습 모드는 정답/오답 모두 자동으로 넘어가지 않고 "다음 ▶" 버튼으로만 진행한다. */
 function _handlePracticeAnswer(correct, word) {
-  const s = State.practiceStats;
   if (correct) {
-    s.correct++;
     const hitType = _hitTypeForBlanks(State.puzzleBlanks, null); // 연습 모드는 타이머 없음 → 홈런 제외
     const result  = LocalGame.hit(hitType);
     const labels  = { single:'1루타! 🏃', double:'2루타! 🏃‍', triple:'3루타! 💨' };
@@ -3148,27 +3141,15 @@ function _handlePracticeAnswer(correct, word) {
     if (result.runs > 0) showScoreCeremony(result.runs, 'top');
     speakWord(word.word, TTS_LANG[State.answerLang] ?? 'en-US');
     _showCorrectAnswer(word.word); // 슬롯 초록색으로 잠금
-    show('practice-next-bar');    // "다음 ▶" 버튼 표시, 자동 진행 없음
   } else {
-    s.wrong++;
-    const prevInning = LocalGame.inning;
-    const result     = LocalGame.strike();
-    const isThirdOut = result.out && LocalGame.outs === 0;
-    const displayOut = isThirdOut ? 3 : LocalGame.outs;
-    toast(`아웃 (${displayOut}/3)`, '#f85149');
+    LocalGame.strike();
+    toast('오답!', '#f85149');
     playSfx('out');
     _showCorrectAnswer(word.word);
     updateScoreboard(LocalGame.toHUD());
     if (LocalGame.gameOver) LocalGame.reset(99);
-    const resumeDelay = isThirdOut ? 4700 : 3700; // +1.5초
-    if (isThirdOut) {
-      setTimeout(() => {
-        toast(`⚾ ${prevInning}이닝 종료  →  ${LocalGame.inning}이닝 시작`, '#93c5fd');
-      }, 2100);
-    }
-    setTimeout(() => { hide('puzzle-panel'); _practiceNextWord(); }, resumeDelay);
   }
-  _updatePracticeStats();
+  show('practice-next-bar');
 }
 
 /* ── 타석 이닝 선택 ────────────────────────────────────── */
