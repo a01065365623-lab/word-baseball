@@ -313,8 +313,7 @@
     /* 이닝 버튼 활성 — 라벤더 */
     .inning-btn.active,
     .lobby-inning-btn.active,
-    .cpu-inning-btn.active,
-    .practice-inning-btn.active {
+    .cpu-inning-btn.active {
       background: rgba(123,108,246,0.35);
       border-color: rgba(163,148,255,0.80);
       color: #ffffff;
@@ -1264,7 +1263,7 @@
     <!-- ══ 연습 모드 난이도 선택 ════════════════════════ -->
     <div class="panel hidden" id="practice-select-panel">
       <h3>불펜</h3>
-      <p>언어·리그·이닝을 선택하세요</p>
+      <p>언어와 리그를 선택하세요</p>
 
       <div class="lang-select-row">
         <div class="lang-select-col">
@@ -1300,14 +1299,6 @@
         <button class="practice-diff-btn hard" data-diff="3">
           <span>메이저리그</span><span class="pdb-sub">6~9글자</span>
         </button>
-      </div>
-      <div style="margin-bottom:16px;">
-        <div class="lobby-section-label">이닝 수</div>
-        <div style="display:flex;gap:8px;">
-          <button class="mode-btn practice-inning-btn active" data-inning="2" style="flex:1;">2이닝</button>
-          <button class="mode-btn practice-inning-btn" data-inning="4" style="flex:1;">4이닝</button>
-          <button class="mode-btn practice-inning-btn" data-inning="6" style="flex:1;">6이닝</button>
-        </div>
       </div>
       <button class="btn btn-login-main" id="btn-practice-start" style="font-size:15px;padding:13px;margin-bottom:8px;">⚾ 게임 시작</button>
       <button class="btn-exit" id="btn-practice-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
@@ -3174,15 +3165,6 @@ document.querySelectorAll('.order-choice-btn').forEach(btn => {
   };
 });
 document.getElementById('btn-cpu-order-back').onclick = () => { hideAll(); show('cpu-select-panel'); };
-
-/* ── 불펜 이닝 선택 ────────────────────────────────────── */
-document.querySelectorAll('.practice-inning-btn').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('.practice-inning-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    State.selectedInning = parseInt(btn.dataset.inning);
-  };
-});
 
 /* ── 리그 선택 (타석/불펜 공용) ──────────────────────── */
 document.querySelectorAll('.practice-diff-btn[data-diff]').forEach(btn => {
