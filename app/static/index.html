@@ -2622,7 +2622,12 @@ function buildPuzzle(wordData, opts = {}) {
   }
 
   showOffenseView();
-  if (State.gameMode === 'practice') {
+  const isPractice = State.gameMode === 'practice';
+  // 불펜 모드는 보기 클릭 시 자동으로 채워지고 다 채우면 자동 제출되므로
+  // 지우기/제출 버튼이 필요 없다 (개별 슬롯 클릭으로는 여전히 지울 수 있음)
+  document.getElementById('puzzle-clear').classList.toggle('hidden', isPractice);
+  document.getElementById('puzzle-submit').classList.toggle('hidden', isPractice);
+  if (isPractice) {
     stopTimer();
     const txt = document.getElementById('puzzle-timer-text');
     txt.textContent = '∞';
