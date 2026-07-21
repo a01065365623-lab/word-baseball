@@ -1009,17 +1009,17 @@
       top:90px; left:210px; width:380px;
     }
     #cpu-select-panel, #cpu-order-select-panel,
-    #pvp-select-panel, #pvp-room-panel {
+    #pvp-select-panel {
       top:90px; left:210px; width:380px;
     }
     #cpu-select-panel h3, #cpu-order-select-panel h3,
-    #pvp-select-panel h3, #pvp-room-panel h3 {
+    #pvp-select-panel h3 {
       font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
       color:#FFE566; text-shadow:0 0 14px rgba(255,220,80,0.55);
       margin-bottom:6px; text-align:center;
     }
     #cpu-select-panel p, #cpu-order-select-panel p,
-    #pvp-select-panel p, #pvp-room-panel p {
+    #pvp-select-panel p {
       font-size:13px; color:rgba(255,255,255,0.50); text-align:center; margin-bottom:18px;
     }
     #practice-select-panel h3 {
@@ -1371,10 +1371,10 @@
       <button class="btn-exit" id="btn-cpu-order-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 이전으로</button>
     </div>
 
-    <!-- ══ 맞대결 언어 선택 ══════════════════════════════ -->
+    <!-- ══ 맞대결 (언어 선택 + 방 참가 통합) ═══════════════ -->
     <div class="panel hidden" id="pvp-select-panel">
       <h3>맞대결</h3>
-      <p>힌트/정답 언어를 선택하세요</p>
+      <p>힌트/정답 언어를 선택하고 방을 만들거나 참가하세요</p>
 
       <div class="lang-select-row">
         <div class="lang-select-col">
@@ -1399,15 +1399,6 @@
           </div>
         </div>
       </div>
-
-      <button class="btn btn-login-main" id="btn-pvp-lang-next" style="font-size:15px;padding:13px;margin-bottom:8px;">다음 →</button>
-      <button class="btn-exit" id="btn-pvp-lang-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
-    </div>
-
-    <!-- ══ 맞대결 방 참가 ════════════════════════════════ -->
-    <div class="panel hidden" id="pvp-room-panel">
-      <h3>맞대결</h3>
-      <p>방을 만들거나 참가하세요</p>
 
       <div id="pvp-join-section" style="margin-bottom:12px;">
         <div style="display:flex;gap:6px;margin-bottom:10px;">
@@ -1435,7 +1426,7 @@
       </div>
 
       <button class="btn btn-login-main" id="btn-pvp-create-room" style="font-size:15px;padding:13px;margin-bottom:8px;">🏠 방 만들기</button>
-      <button class="btn-exit" id="btn-pvp-room-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 이전으로</button>
+      <button class="btn-exit" id="btn-pvp-lang-back" style="width:100%;padding:10px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;">← 로비로</button>
     </div>
 
     <!-- ══ 게임 HUD ══════════════════════════════════════ -->
@@ -1992,7 +1983,7 @@ function hideAll() {
   stopRoomListPolling();
   ['lobby-panel','settings-modal','waiting-panel',
    'answer-bar','game-hud','practice-hud','practice-select-panel','cpu-select-panel','cpu-order-select-panel',
-   'pvp-select-panel','pvp-room-panel',
+   'pvp-select-panel',
    'game-field','defense-panel','puzzle-panel','practice-next-bar',
    'item-bar','cold-game-banner','result-panel'].forEach(hide);
 }
@@ -3414,6 +3405,7 @@ document.getElementById('btn-start-game').onclick = () => {
   if (State.selectedMode === 'pvp') {
     hideAll(); show('pvp-select-panel');
     pvpLangPair.refresh();
+    switchPvpTab(State.pvpTab || 'list');
   } else if (State.selectedMode === 'practice') {
     startPracticeSelect();
   } else {
@@ -3421,13 +3413,8 @@ document.getElementById('btn-start-game').onclick = () => {
   }
 };
 
-/* ── 맞대결: 언어 선택 → 방 참가 화면 ──────────────────── */
-document.getElementById('btn-pvp-lang-next').onclick = () => {
-  hideAll(); show('pvp-room-panel');
-  switchPvpTab(State.pvpTab || 'list');
-};
+/* ── 맞대결: 로비로 돌아가기 ────────────────────────────── */
 document.getElementById('btn-pvp-lang-back').onclick = () => { hideAll(); show('lobby-panel'); };
-document.getElementById('btn-pvp-room-back').onclick = () => { hideAll(); show('pvp-select-panel'); };
 document.getElementById('btn-pvp-create-room').onclick = () => {
   socket.emit('action:create_room', {
     username:   State.username,
