@@ -347,6 +347,7 @@
     .game-mode-btn > div:last-child {
       font-size: 11px !important;
     }
+    .game-mode-btn.locked { opacity: 0.55; cursor: not-allowed; }
 
     /* PVP 참가 탭 */
     .pvp-tab-btn {
@@ -1098,9 +1099,9 @@
             <div>🤖 타석</div>
             <div style="font-weight:400;color:rgba(255,255,255,0.55);margin-top:5px;line-height:1.3;">공격만 진행<br>10점↑ 시 200코인</div>
           </button>
-          <button class="mode-btn game-mode-btn" data-mode="pvp" style="flex:1;">
-            <div>👥 맞대결</div>
-            <div style="font-weight:400;color:rgba(255,255,255,0.55);margin-top:5px;line-height:1.3;">실시간 대전<br>승리 시 코인 획득</div>
+          <button class="mode-btn game-mode-btn locked" data-mode="pvp" style="flex:1;">
+            <div>🔒 맞대결</div>
+            <div style="font-weight:400;color:rgba(255,255,255,0.55);margin-top:5px;line-height:1.3;">준비중</div>
           </button>
           <button class="mode-btn game-mode-btn" data-mode="practice" style="flex:1;">
             <div>📚 불펜</div>
@@ -3323,6 +3324,11 @@ document.querySelectorAll('.inning-btn').forEach(btn => {
 
 document.querySelectorAll('.game-mode-btn').forEach(btn => {
   btn.onclick = () => {
+    // 맞대결 모드 준비중 — 관련 코드/화면은 삭제하지 않고 그대로 유지, 진입만 막는다
+    if (btn.dataset.mode === 'pvp') {
+      toast('🚧 준비중입니다', '#fbbf24');
+      return;
+    }
     document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     State.selectedMode = btn.dataset.mode;
